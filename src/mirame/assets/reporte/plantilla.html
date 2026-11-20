@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITULO__ · Mírame</title>
+<style>
+/*CSS*/
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1 id="titulo"></h1>
+    <div class="sub" id="subtitulo"></div>
+  </div>
+  <div class="marca"><a href="/" id="volver" class="volver" hidden>← Biblioteca</a><b>Mírame</b> · hacia dónde mira el predicador</div>
+</header>
+
+<div id="advertencias"></div>
+
+<main class="principal">
+  <section class="col-video">
+    <div class="marco" id="marco">
+      <div class="escenario" id="escenario">
+        <video id="video" src="video.mp4" preload="auto" playsinline></video>
+        <div class="caja" id="caja"><span class="etiqueta" id="caja-etiqueta"></span></div>
+        <div class="estado-video">
+          <div class="pildora" id="pildora">—</div>
+          <div class="inclinacion"><b class="num" id="pitch">—</b><span id="sentido"></span></div>
+        </div>
+      </div>
+    </div>
+    <div class="transporte">
+      <button class="primario" id="reproducir">▶ Reproducir</button>
+      <button id="atras" title="Flecha izquierda">−5 s</button>
+      <button id="adelante" title="Flecha derecha">+5 s</button>
+      <button id="sig-episodio" title="Siguiente lectura de notas">Siguiente lectura ›</button>
+      <span class="reloj num" id="reloj">0:00</span>
+      <span class="espacio"></span>
+      <span class="aviso" id="aviso"></span>
+      <button class="discreto" id="capturar">Capturar</button>
+      <button class="discreto" id="ver-resumen" title="Tecla R">Resumen</button>
+    </div>
+  </section>
+
+  <aside class="lado">
+    <div class="panel veredicto">
+      <div class="etq">Resultado</div>
+      <div class="cifra num" id="cifra"></div>
+      <div class="frase" id="frase"></div>
+      <div class="reparto" id="reparto"></div>
+      <div class="partes" id="partes"></div>
+    </div>
+
+    <div class="panel panel-ahora">
+      <div class="etq">Inclinación, 2 minutos alrededor <small id="zoom-nota"></small></div>
+      <div class="grafica"><canvas id="c-zoom"></canvas></div>
+    </div>
+
+    <div class="panel">
+      <div class="etq">Detalle</div>
+      <div class="datos" id="datos"></div>
+    </div>
+  </aside>
+</main>
+
+<section class="panel recorrido">
+  <div class="etq">Recorrido del sermón <small id="cinta-nota"></small></div>
+  <div class="pista" id="g-cinta">
+    <canvas class="cinta" id="c-cinta"></canvas>
+    <div class="cursor" id="cur-cinta"></div>
+  </div>
+  <div class="grafica pitch" id="g-pitch"><canvas id="c-pitch"></canvas><div class="cursor" id="cur-pitch"></div></div>
+  <div class="pie-recorrido">
+    <div class="leyenda">
+      <span style="--c: var(--congregacion)">Congregación</span>
+      <span style="--c: var(--abajo)">Notas</span>
+      <span style="--c: var(--biblia)" id="leyenda-biblia" hidden>Biblia</span>
+      <span style="--c: var(--sin-dato)">Sin dato</span>
+      <span style="--c: var(--excluido)" id="leyenda-oracion" hidden>Oración (excluida)</span>
+    </div>
+    <div class="episodios" id="episodios"></div>
+  </div>
+</section>
+
+<footer>
+  <div id="metodo"></div>
+  <div id="pie-derecha"></div>
+</footer>
+
+<script>/*CHARTJS*/</script>
+<script>
+/*JS*/
+</script>
+</body>
+</html>

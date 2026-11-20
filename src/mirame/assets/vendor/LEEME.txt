@@ -1,0 +1,2 @@
+Chart.js 4.4.1 (https://www.chartjs.org), licencia MIT, (c) Chart.js Contributors.
+Se incluye sin cambios para que los reportes funcionen sin conexión.

@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mírame</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%2316a34a'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="barra">
+  <a href="#/" class="logo"><span class="ojo"></span>Mírame</a>
+  <nav>
+    <a href="#/" data-nav="nuevo">Nuevo análisis</a>
+    <a href="#/biblioteca" data-nav="biblioteca">Biblioteca <span class="globo" id="globo" hidden></span></a>
+    <a href="#/ajustes" data-nav="ajustes">Ajustes</a>
+  </nav>
+</header>
+
+<main id="vista"></main>
+
+<footer class="pie">
+  <span>Mírame <span id="version"></span> · por Jacobis Aldana · código abierto (MIT)</span>
+  <span id="carpeta-datos"></span>
+</footer>
+
+<!-- Modal de confirmación reutilizable -->
+<div class="fondo-modal" id="modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
+    <h2 id="modal-titulo"></h2>
+    <div id="modal-texto"></div>
+    <div class="acciones">
+      <button type="button" class="secundario" id="modal-no">Cancelar</button>
+      <button type="button" id="modal-si">Aceptar</button>
+    </div>
+  </div>
+</div>
+<div class="aviso-flotante" id="toast" hidden></div>
+
+<!-- ============================================================ Plantillas -->
+<template id="t-nuevo">
+  <section class="hoja angosta">
+    <h1>¿Hacia dónde mira el predicador?</h1>
+    <p class="intro">Pega el enlace de un sermón en YouTube. Mírame revisa el video cuatro veces por segundo
+      y te dice qué parte del tiempo miró a la congregación y qué parte a sus notas.</p>
+
+    <form id="f-nuevo" class="tarjeta" autocomplete="off">
+      <label class="campo grande">
+        <span>Enlace de YouTube</span>
+        <input name="origen" type="url" placeholder="https://www.youtube.com/watch?v=…" inputmode="url">
+      </label>
+      <div class="o-archivo">
+        <span>o</span>
+        <label class="boton secundario chico"><input type="file" id="archivo" accept="video/*" hidden>Elegir un video de tu computadora</label>
+        <span class="archivo-elegido" id="archivo-elegido"></span>
+      </div>
+
+      <div class="fila-3">
+        <label class="campo"><span>Inicio del sermón</span>
+          <input name="inicio" placeholder="mm:ss" pattern="^\d{1,2}(:\d{1,2}){1,2}$"></label>
+        <label class="campo"><span>Fin del sermón</span>
+          <input name="fin" placeholder="mm:ss" pattern="^\d{1,2}(:\d{1,2}){1,2}$"></label>
+        <label class="campo"><span>Título</span>
+          <input name="titulo" placeholder="El de YouTube"></label>
+      </div>
+      <p class="nota">Inicio, fin y título son opcionales. Recorta solo la predicación: sin alabanza ni anuncios, el resultado es más fiel.</p>
+
+      <label class="interruptor" id="op-lecturas">
+        <input type="checkbox" name="separar_lecturas">
+        <span><b>Separar la lectura bíblica y la oración</b>
+          <small id="lecturas-nota">Usa IA para transcribir el sermón. Leer la Biblia no cuenta como leer notas, y orar con los ojos cerrados no cuenta como mirar abajo.</small></span>
+      </label>
+
+      <details class="avanzado">
+        <summary>Opciones avanzadas</summary>
+        <div class="fila-3">
+          <label class="campo"><span>Fotogramas por segundo</span><input name="fps" type="number" min="1" max="25" step="0.5" value="4"></label>
+          <label class="campo"><span>Umbral de la cabeza (°)</span><input name="umbral" type="number" min="5" max="40" step="1" value="15"></label>
+          <label class="campo"><span>Umbral de los ojos (0–1)</span><input name="umbral_ojos" type="number" min="0.1" max="0.9" step="0.05" value="0.45"></label>
+        </div>
+        <label class="interruptor chico"><input type="checkbox" name="solo_cabeza"><span>Medir solo la cabeza (ignorar los ojos)</span></label>
+        <p class="nota">A 4 fotogramas por segundo el resultado casi no cambia frente a 12, y tarda unas cinco veces menos.</p>
+      </details>
+
+      <div class="error" id="error-nuevo" hidden></div>
+      <button type="submit" class="principal" id="b-analizar">Analizar sermón</button>
+    </form>
+
+    <div class="tarjeta como">
+      <h3>Cómo se mide</h3>
+      <ol>
+        <li>Ubica el rostro del predicador en cada fotograma y mide la inclinación de la cabeza y hacia dónde apuntan los ojos.</li>
+        <li>Aprende su postura habitual al mirar a la gente y marca como «abajo» lo que se aparta de ella.</li>
+        <li>Si activas la IA, transcribe el audio y separa la lectura bíblica y la oración.</li>
+        <li>Entrega un reporte con el video, los porcentajes, la mirada más larga y la línea de tiempo.</li>
+      </ol>
+      <p class="nota">Todo corre en tu computadora. El video solo sale de ella si activas la IA, y en ese caso solo el audio.</p>
+    </div>
+  </section>
+</template>
+
+<template id="t-biblioteca">
+  <section class="hoja">
+    <div class="titulo-seccion">
+      <h1>Biblioteca</h1>
+      <a href="#/" class="boton">+ Nuevo análisis</a>
+    </div>
+    <div id="trabajos"></div>
+    <div id="lista"></div>
+    <div class="tarjeta almacen" id="almacen"></div>
+  </section>
+</template>
+
+<template id="t-ajustes">
+  <section class="hoja angosta">
+    <h1>Ajustes</h1>
+    <div class="explica">
+      <b>Mírame funciona sin claves de IA.</b> Mide la mirada igual. Las claves solo agregan un paso opcional:
+      transcribir el sermón para separar la <span class="c-biblia">lectura bíblica</span> y la oración. Así el resultado es
+      más preciso, porque leer la Biblia en voz alta no se confunde con leer notas.
+    </div>
+
+    <form id="f-ajustes" class="tarjeta" autocomplete="off">
+      <h2>Transcripción · Groq</h2>
+      <p class="nota">Groq transcribe el audio con Whisper. Crea una clave gratis en
+        <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a>.
+        Con esta sola clave alcanza: también sirve para marcar las lecturas.</p>
+      <label class="campo"><span>Clave de Groq</span>
+        <div class="con-boton">
+          <input name="groq_clave" type="password" placeholder="gsk_…" spellcheck="false">
+          <button type="button" class="secundario chico" data-ver="groq_clave">Ver</button>
+          <button type="button" class="secundario chico" data-probar="groq">Probar</button>
+        </div>
+      </label>
+      <div class="resultado-prueba" id="prueba-groq"></div>
+
+      <h2>Modelo para marcar lecturas</h2>
+      <label class="interruptor chico"><input type="radio" name="proveedor" value="groq" checked>
+        <span>Usar Groq <small>(openai/gpt-oss-120b, con la clave de arriba)</small></span></label>
+      <label class="interruptor chico"><input type="radio" name="proveedor" value="otro">
+        <span>Otro proveedor compatible con OpenAI <small>(OpenRouter, Azure, LiteLLM, DeepSeek, Ollama…)</small></span></label>
+
+      <div id="otro-proveedor" hidden>
+        <label class="campo"><span>URL base de la API</span>
+          <input name="llm_url" placeholder="https://openrouter.ai/api/v1" spellcheck="false"></label>
+        <label class="campo"><span>Clave</span>
+          <div class="con-boton">
+            <input name="llm_clave" type="password" spellcheck="false">
+            <button type="button" class="secundario chico" data-ver="llm_clave">Ver</button>
+            <button type="button" class="secundario chico" data-probar="llm">Probar</button>
+          </div>
+        </label>
+        <div class="resultado-prueba" id="prueba-llm"></div>
+        <label class="campo"><span>Modelo</span>
+          <input name="llm_modelo" list="modelos" placeholder="deepseek-chat" spellcheck="false"></label>
+        <datalist id="modelos"></datalist>
+        <p class="nota">Conviene un modelo rápido y sin razonamiento: la tarea es marcar frases, no pensar.</p>
+      </div>
+
+      <div class="error" id="error-ajustes" hidden></div>
+      <div class="acciones-form">
+        <span class="nota" id="guardado-en"></span>
+        <button type="submit" class="principal">Guardar</button>
+      </div>
+    </form>
+  </section>
+</template>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

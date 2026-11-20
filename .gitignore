@@ -1,0 +1,20 @@
+# Entorno
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+
+# Datos de usuario (viven en ~/Mirame, pero por si alguien usa MIRAME_DATOS=. )
+analisis/
+descargas/
+modelos/
+configuracion.json
+.env
+
+# Sistema
+.DS_Store
+Thumbs.db
