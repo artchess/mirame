@@ -82,11 +82,40 @@ mirame instalar-capturas
 
 La primera vez que analices un sermón, Mírame descarga el modelo de MediaPipe (3,6 MB).
 
-### Actualizar o desinstalar
+### Actualizar
+
+Para pasar a la última versión, cierra la app (`Ctrl+C` en la terminal donde corre) y ejecuta:
 
 ```bash
-uv tool upgrade mirame        # actualizar
-uv tool uninstall mirame      # desinstalar (tus análisis quedan en ~/Mirame)
+uv tool upgrade mirame
+```
+
+Comprueba la versión instalada con `mirame --version`; también aparece en el pie de la app. Las versiones publicadas y sus cambios están en [Releases](https://github.com/jacomv/mirame/releases) y en el [CHANGELOG](CHANGELOG.md).
+
+Tus análisis, videos y claves viven en `~/Mirame` y no se tocan al actualizar. Si una versión cambia el **método de medición** (el CHANGELOG lo indica), los análisis anteriores conservan sus cifras viejas hasta que los recalcules. Recalcular no vuelve a procesar el video y tarda unos segundos:
+
+```bash
+mirame lista                       # ver los análisis guardados y su id
+mirame recalcular <análisis>       # aplicar el método nuevo a uno
+```
+
+Para instalar una versión concreta, por ejemplo para repetir un análisis con el método de entonces:
+
+```bash
+uv tool install --force "mirame[capturas] @ git+https://github.com/jacomv/mirame@v0.4.0"
+```
+
+Si trabajas desde el código fuente:
+
+```bash
+git pull
+uv sync --extra capturas --group dev
+```
+
+### Desinstalar
+
+```bash
+uv tool uninstall mirame      # tus análisis quedan en ~/Mirame; bórrala a mano si ya no la quieres
 ```
 
 ---
