@@ -81,3 +81,12 @@ def test_borrar(base):
     assert codigo == 200 and not (rutas.analisis() / "2026-01-01_x").exists()
     codigo, _, _ = pedir(base + "/api/analisis/2026-01-01_x", "DELETE")
     assert codigo == 404
+
+
+def test_estimar(base):
+    codigo, cuerpo, _ = pedir(base + "/api/estimar", "POST", {"duracion": 5400, "inicio": "", "fin": ""})
+    d = json.loads(cuerpo)
+    assert codigo == 200 and d["tramo"] == 5400 and d["segundos"] > 0
+    assert d["advertencias"]                          # video largo sin recortar
+    codigo, cuerpo, _ = pedir(base + "/api/estimar", "POST", {"duracion": 5400, "inicio": "10:00", "fin": "50:00"})
+    assert json.loads(cuerpo)["tramo"] == 2400

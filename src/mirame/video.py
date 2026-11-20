@@ -71,6 +71,27 @@ def obtener(origen: str, progreso: Progreso | None = None) -> Fuente:
     return Fuente(origen=origen, archivo=destino, id=info["id"], titulo=info.get("title") or info["id"])
 
 
+def info(origen: str) -> dict:
+    """Título, duración y miniatura sin descargar el video (para elegir el tramo)."""
+    if not es_url(origen):
+        ruta = Path(origen).expanduser()
+        if not ruta.exists():
+            raise FileNotFoundError(f"No existe el archivo: {ruta}")
+        return {"titulo": ruta.stem, "duracion": duracion(ruta), "youtube_id": None, "miniatura": None, "canal": None}
+    import yt_dlp
+
+    with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True, "skip_download": True}) as ydl:
+        d = ydl.extract_info(origen, download=False)
+    return {
+        "titulo": d.get("title") or d.get("id"),
+        "duracion": float(d.get("duration") or 0) or None,
+        "youtube_id": d.get("id") if d.get("extractor_key") == "Youtube" else None,
+        "miniatura": d.get("thumbnail"),
+        "canal": d.get("channel") or d.get("uploader"),
+        "descargado": (rutas.descargas() / f"{d.get('id')}.mp4").exists(),
+    }
+
+
 def _slug(texto: str) -> str:
     return re.sub(r"[^A-Za-z0-9_-]+", "-", texto).strip("-")[:60] or "video"
 
@@ -93,9 +114,11 @@ def dimensiones(archivo: Path) -> tuple[int, int]:
     return int(s["width"]), int(s["height"])
 
 
-def recortar(archivo: Path, destino: Path, inicio: float | None, fin: float | None) -> None:
+def recortar(archivo: Path, destino: Path, inicio: float | None, fin: float | None,
+             progreso: Progreso | None = None) -> None:
     """Corte exacto (recodifica) a H.264 de máximo 720 de alto, con audio AAC."""
-    cmd = ["ffmpeg", "-v", "error", "-y"]
+    total = (fin if fin is not None else duracion(archivo)) - (inicio or 0)
+    cmd = ["ffmpeg", "-v", "error", "-y", "-nostats", "-progress", "pipe:1"]
     if inicio:
         cmd += ["-ss", f"{inicio:.3f}"]
     cmd += ["-i", str(archivo)]
@@ -109,7 +132,24 @@ def recortar(archivo: Path, destino: Path, inicio: float | None, fin: float | No
         "-movflags", "+faststart",
         str(destino),
     ]
-    subprocess.run(cmd, check=True)
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    try:
+        for linea in proc.stdout:
+            if progreso and linea.startswith("out_time_us=") and total > 0:
+                try:
+                    hecho = min(int(linea.split("=", 1)[1]) / 1e6 / total, 1.0)
+                except ValueError:
+                    continue
+                progreso.fraccion = hecho
+                progreso.mensaje = f"Recortando… {hecho * 100:.0f} %"
+                progreso.revisar()
+    except BaseException:
+        proc.kill()
+        raise
+    finally:
+        proc.wait()
+    if proc.returncode:
+        raise RuntimeError(f"ffmpeg no pudo recortar el video: {proc.stderr.read()[-400:]}")
 
 
 def fotogramas(archivo: Path, fps: float):

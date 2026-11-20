@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import re
 import shutil
+import time
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
@@ -41,6 +42,48 @@ class Opciones:
             excluir=list(self.excluir), ancho_minimo=self.ancho_minimo, umbral_ojos=self.umbral_ojos)
 
 
+RENDIMIENTO_POR_DEFECTO = 0.06   # s de proceso por s de video a 4 fps (Mac con chip Apple)
+
+
+def rendimiento() -> float:
+    """Segundos de medición por segundo de video a 4 fps, según los análisis anteriores
+    en esta computadora (mediana); si no hay, un valor típico."""
+    valores = []
+    for c in rutas.analisis().iterdir():
+        try:
+            e = json.loads((c / "estado.json").read_text())
+            valores.append(e["segundos_medicion"] / e["segundos_video"] * 4 / e["fps"])
+        except (OSError, KeyError, ValueError, ZeroDivisionError):
+            continue
+    return float(sorted(valores)[len(valores) // 2]) if valores else RENDIMIENTO_POR_DEFECTO
+
+
+def estimar(segundos_video: float, fps: float = 4.0, lecturas: bool = False, descargar: bool = False) -> dict:
+    """Cuánto tardará un análisis, para avisar antes de empezar."""
+    medir = segundos_video * rendimiento() * fps / 4
+    recortar = segundos_video * 0.02
+    extra = (60 + segundos_video * 0.03) if lecturas else 0     # transcripción + marcas
+    bajar = segundos_video * 0.03 if descargar else 0
+    return {"segundos": round(medir + recortar + extra + bajar), "medicion": round(medir)}
+
+
+def advertencias(duracion_total: float | None, inicio: float | None, fin: float | None) -> list[str]:
+    """Avisos útiles antes de procesar."""
+    avisos = []
+    if not duracion_total:
+        return avisos
+    a, b = inicio or 0, fin if fin is not None else duracion_total
+    tramo = b - a
+    if inicio is None and fin is None and duracion_total > 70 * 60:
+        avisos.append(f"El video dura {formato_tiempo(duracion_total)}. Si incluye alabanza, anuncios u oración "
+                      "final, marca solo la predicación: así el resultado describe el sermón.")
+    if tramo < 5 * 60:
+        avisos.append("Un tramo de menos de 5 minutos da un resultado poco estable: el margen de error crece mucho.")
+    if tramo > 150 * 60:
+        avisos.append(f"Vas a analizar {formato_tiempo(tramo)}. Tardará bastante: deja la computadora encendida.")
+    return avisos
+
+
 def carpeta_nueva(id_video: str) -> Path:
     """analisis/<fecha>_<id>, con sufijo si ya existe."""
     base = f"{date.today().isoformat()}_{re.sub(r'[^A-Za-z0-9_-]+', '-', id_video)[:60]}"
@@ -55,6 +98,11 @@ def analizar(op: Opciones, progreso: Progreso | None = None) -> tuple[Path, dict
     """Descarga, recorta, mide la mirada fotograma a fotograma y genera el reporte.
     Si hay claves de IA, además separa la lectura bíblica y la oración."""
     progreso = progreso or Progreso()
+    separar = op.separar_lecturas
+    if separar is None:
+        separar = config.cargar().puede_separar_lecturas
+    progreso.plan = ["Obteniendo el video", "Recortando el sermón", "Midiendo la mirada"] + (
+        ["Transcribiendo el audio", "Marcando lectura bíblica y oración"] if separar else [])
 
     progreso.etapa_nueva("Obteniendo el video")
     fuente = video.obtener(op.origen, progreso)
@@ -83,11 +131,14 @@ def _analizar(op: Opciones, fuente: video.Fuente, carpeta: Path, progreso: Progr
     else:
         progreso.aviso(f"{formato_tiempo(op.inicio or 0)} → "
                        f"{formato_tiempo(op.fin) if op.fin else 'final'} (H.264, 720p)")
-        video.recortar(fuente.archivo, clip, op.inicio, op.fin)
+        video.recortar(fuente.archivo, clip, op.inicio, op.fin, progreso)
         marca.write_text(json.dumps(recorte))
 
     progreso.etapa_nueva("Midiendo la mirada")
+    reloj = Cronometro()
     df = medir(clip, op.fps, progreso)
+    _estado(carpeta, "en_proceso", segundos_medicion=round(time.time() - reloj.t0, 1),
+            segundos_video=round(video.duracion(clip), 1), fps=op.fps)
     ancho, alto = video.dimensiones(clip)
     info = {
         "origen": fuente.origen, "titulo": op.titulo or fuente.titulo,
@@ -98,10 +149,9 @@ def _analizar(op: Opciones, fuente: video.Fuente, carpeta: Path, progreso: Progr
     reporte.generar(carpeta)
     _estado(carpeta, "listo")
 
-    separar = op.separar_lecturas
-    if separar is None:
-        separar = config.cargar().puede_separar_lecturas
-    if separar:
+    if op.separar_lecturas is None and not config.cargar().puede_separar_lecturas:
+        return carpeta, resumen
+    if op.separar_lecturas is not False:
         try:
             resumen = separar_lecturas(carpeta, progreso)
         except lecturas.FaltaLlave as e:
@@ -148,8 +198,11 @@ def separar_lecturas(carpeta: Path, progreso: Progreso | None = None, retranscri
                      solo_recalcular: bool = False) -> dict:
     """Transcribe (si hace falta), marca lectura bíblica y oración, y recalcula."""
     progreso = progreso or Progreso()
+    transcribir = retranscribir or not (carpeta / "transcripcion.json").exists()
+    if not progreso.plan and not solo_recalcular:
+        progreso.plan = (["Transcribiendo el audio"] if transcribir else []) + ["Marcando lectura bíblica y oración"]
     if not solo_recalcular:
-        if retranscribir or not (carpeta / "transcripcion.json").exists():
+        if transcribir:
             progreso.etapa_nueva("Transcribiendo el audio")
             lecturas.transcribir(carpeta, progreso)
         progreso.etapa_nueva("Marcando lectura bíblica y oración")
