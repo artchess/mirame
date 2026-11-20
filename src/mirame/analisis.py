@@ -1,4 +1,8 @@
-"""Calibrar, clasificar y resumir. Todo se puede recalcular desde fotogramas.csv."""
+"""Calibrar, clasificar y resumir. Todo se puede recalcular desde fotogramas.csv.
+
+El método está explicado en docs/como-funciona.md; los cambios entre versiones, en
+CHANGELOG.md. METODO identifica la versión de las reglas de clasificación.
+"""
 
 from __future__ import annotations
 
@@ -14,6 +18,8 @@ from .video import formato_tiempo
 
 CONGREGACION, ABAJO, SIN_DATO, EXCLUIDO = "congregacion", "abajo", "sin_dato", "excluido"
 LIMITE_SIN_DATO = 30.0  # % de segundos sin rostro a partir del cual el resultado es poco confiable
+METODO = 3              # 1: cabeza · 2: + ojos · 3: + calibración con ojos arriba, filtro de parpadeo
+BLOQUE_BOOTSTRAP = 30   # s: los segundos vecinos no son independientes; se remuestrea por bloques
 
 
 @dataclass
@@ -25,6 +31,12 @@ class Parametros:
     excluir: list[tuple[float, float]] = field(default_factory=list)
     ancho_minimo: int = 0                           # rostros más angostos cuentan como sin dato
     umbral_ojos: float | None = 0.45                # puntaje de ojos bajados; None = solo la cabeza
+    # Método 3 (ver docs/como-funciona.md, «Validación con muestras»):
+    calibrar_ojos: float | None = 0.30              # calibrar con fotogramas de ojos claramente arriba; None = todos
+    ojos_min_s: float = 0.5                         # los ojos bajados deben sostenerse (un parpadeo dura menos)
+    ojos_cabeza_min: float = -8.0                   # con la cabeza levantada más que esto, ojos cerrados no es leer
+    zona_dudosa: float = 5.0                        # ± grados alrededor del umbral donde deciden los ojos
+    ojos_zona: float = 0.25                         # en esa franja, ojos por encima de esto = mira abajo
 
 
 def calibrar(df: pd.DataFrame, p: Parametros) -> tuple[float, str]:
@@ -38,7 +50,32 @@ def calibrar(df: pd.DataFrame, p: Parametros) -> tuple[float, str]:
             return float(en_rango.pitch.median()), f"mediana {formato_tiempo(a)}–{formato_tiempo(b)}"
     if not len(validos):
         return 0.0, "sin datos"
+    if p.calibrar_ojos is not None and "ojos" in validos.columns:
+        # Quien lee mucho arrastra la mediana hacia abajo. Los fotogramas con los ojos
+        # claramente arriba son, casi siempre, momentos de mirar a la gente.
+        arriba = validos[validos.ojos < p.calibrar_ojos]
+        if len(arriba) >= max(50, 0.1 * len(validos)):
+            return float(arriba.pitch.median()), "mediana con los ojos arriba"
     return float(validos.pitch.median()), "mediana del sermón"
+
+
+def rachas_minimas(mascara: np.ndarray, n: int) -> np.ndarray:
+    """Deja en True solo las rachas de al menos n elementos seguidos."""
+    salida = np.zeros(len(mascara), bool)
+    if n <= 1:
+        return mascara.astype(bool)
+    i = 0
+    while i < len(mascara):
+        if mascara[i]:
+            j = i
+            while j < len(mascara) and mascara[j]:
+                j += 1
+            if j - i >= n:
+                salida[i:j] = True
+            i = j
+        else:
+            i += 1
+    return salida
 
 
 def clasificar(df: pd.DataFrame, p: Parametros) -> tuple[pd.DataFrame, float, str]:
@@ -53,11 +90,22 @@ def clasificar(df: pd.DataFrame, p: Parametros) -> tuple[pd.DataFrame, float, st
         df.loc[df.ancho_rostro < p.ancho_minimo, "rostro"] = False
 
     base, metodo = calibrar(df, p)
-    corte = base + p.umbral
-    abajo = (df.pitch > corte).values
-    if p.umbral_ojos is not None and "ojos" in df.columns:
-        # Ojos bajados aunque la cabeza siga recta: lectura con la mirada.
-        abajo = abajo | (df.ojos.fillna(-1) >= p.umbral_ojos).values
+    rel = (df.pitch - base).values
+    usa_ojos = p.umbral_ojos is not None and "ojos" in df.columns
+    if usa_ojos and p.zona_dudosa:
+        # Cerca del umbral la inclinación sola no distingue «cabeza algo baja mirando a la
+        # gente» de «leyendo»: lo decide hacia dónde apuntan los ojos.
+        ojos_val = df.ojos.fillna(0).values
+        cerca = (rel >= p.umbral - p.zona_dudosa) & (rel <= p.umbral + p.zona_dudosa)
+        abajo = (rel > p.umbral + p.zona_dudosa) | (cerca & (ojos_val >= p.ojos_zona))
+    else:
+        abajo = rel > p.umbral
+    if usa_ojos:
+        # Ojos bajados aunque la cabeza siga recta: lectura con la mirada. No cuentan
+        # los de un solo instante (parpadeos) ni con la cabeza levantada (gesto, no lectura).
+        ojos = (df.ojos.fillna(-1) >= p.umbral_ojos).values & df.rostro.values
+        ojos &= (df.pitch.fillna(0) - base >= p.ojos_cabeza_min).values
+        abajo = abajo | rachas_minimas(ojos, int(np.ceil(p.ojos_min_s * p.fps - 1e-9)))
     clase = np.where(abajo, ABAJO, CONGREGACION)
     clase = np.where(df.rostro, clase, SIN_DATO)
     clase = np.where(df.excluido_, EXCLUIDO, clase)
@@ -193,6 +241,24 @@ def _biblia(seg: pd.DataFrame, largos: list[dict], lecturas, con_dato: int, pct)
     }
 
 
+def intervalo(seg: pd.DataFrame, bloque: int = BLOQUE_BOOTSTRAP, n: int = 1000,
+              semilla: int = 0) -> list[float] | None:
+    """Intervalo del 95 % para el % mirando a la congregación (bootstrap por bloques).
+
+    Los segundos vecinos se parecen entre sí, así que no se remuestrean sueltos sino en
+    bloques de `bloque` segundos. La semilla fija hace el resultado repetible."""
+    validos = seg[seg.clase.isin([CONGREGACION, ABAJO])]
+    if len(validos) < 2 * bloque:
+        return None
+    grupos = validos.groupby(validos.t // bloque)
+    c = grupos.apply(lambda g: (g.clase == CONGREGACION).sum()).to_numpy(float)
+    total = grupos.size().to_numpy(float)
+    rng = np.random.default_rng(semilla)
+    idx = rng.integers(0, len(c), size=(n, len(c)))
+    pcts = 100 * c[idx].sum(axis=1) / total[idx].sum(axis=1)
+    return [round(float(np.percentile(pcts, 2.5)), 1), round(float(np.percentile(pcts, 97.5)), 1)]
+
+
 def resumir(df: pd.DataFrame, seg: pd.DataFrame, p: Parametros, base: float, metodo: str,
             video: dict, lecturas=None) -> dict:
     cuentas = seg.clase.value_counts()
@@ -227,13 +293,21 @@ def resumir(df: pd.DataFrame, seg: pd.DataFrame, p: Parametros, base: float, met
             "excluir": [[a_, b_] for a_, b_ in p.excluir],
             "ancho_minimo": p.ancho_minimo,
             "umbral_ojos": p.umbral_ojos,
+            "calibrar": list(p.calibrar) if p.calibrar else None,
+            "calibrar_ojos": p.calibrar_ojos,
+            "ojos_min_s": p.ojos_min_s,
+            "ojos_cabeza_min": p.ojos_cabeza_min,
+            "zona_dudosa": p.zona_dudosa,
+            "ojos_zona": p.ojos_zona,
             "metodo": "cabeza" if p.umbral_ojos is None else "cabeza + ojos",
+            "metodo_version": METODO,
             "version": __version__,
         },
         "segundos_totales": total,
         "segundos_con_dato": con_dato,
         "segundos_excluidos": int(cuentas.get(EXCLUIDO, 0)),
         "pct_congregacion": pct(c, con_dato),
+        "intervalo_congregacion": intervalo(seg),
         "pct_abajo": pct(a, con_dato),
         "pct_abajo_solo_ojos": pct(solo_ojos, con_dato),
         "pct_sin_dato": pct_sin,
@@ -270,6 +344,15 @@ def guardar(carpeta: Path, df: pd.DataFrame, p: Parametros, video: dict) -> dict
     seg = por_segundo(df, base + p.umbral)
     seg["biblia"] = en_tramos(seg.t.values + 0.5, lecturas) if lecturas else False
     resumen = resumir(df, seg, p, base, metodo, video, lecturas)
+    # Sensibilidad: cuánto cambiaría el resultado con un umbral de cabeza más estricto o más laxo.
+    resumen["sensibilidad"] = {}
+    for delta in (-3, 3):
+        q = replace(p, umbral=p.umbral + delta, excluir=p.excluir + oraciones)
+        d2, b2, _ = clasificar(df, q)
+        s2 = por_segundo(d2, b2 + q.umbral).clase.value_counts()
+        cd = int(s2.get(CONGREGACION, 0) + s2.get(ABAJO, 0))
+        resumen["sensibilidad"][f"umbral_{q.umbral:g}"] = (
+            round(100 * int(s2.get(CONGREGACION, 0)) / cd, 1) if cd else None)
     if oraciones:
         resumen["oracion"] = {"tramos": len(oraciones),
                               "segundos": round(sum(b - a for a, b in oraciones), 1),
@@ -299,16 +382,25 @@ def parametros_de(resumen: dict) -> Parametros:
         fps=pr["fps"], umbral=pr["umbral"],
         base=pr["pitch_calibracion"] if pr.get("metodo_calibracion") == "manual" else None,
         excluir=[tuple(x) for x in pr.get("excluir", [])],
+        calibrar=tuple(pr["calibrar"]) if pr.get("calibrar") else None,
         ancho_minimo=pr.get("ancho_minimo", 0),
         umbral_ojos=pr.get("umbral_ojos"),
+        # Análisis anteriores al método 3 no los traen: al recalcular se aplica el método vigente.
+        calibrar_ojos=pr.get("calibrar_ojos", Parametros.calibrar_ojos),
+        ojos_min_s=pr.get("ojos_min_s", Parametros.ojos_min_s),
+        ojos_cabeza_min=pr.get("ojos_cabeza_min", Parametros.ojos_cabeza_min),
+        zona_dudosa=pr.get("zona_dudosa", Parametros.zona_dudosa),
+        ojos_zona=pr.get("ojos_zona", Parametros.ojos_zona),
     )
 
 
 def texto_resumen(r: dict) -> str:
     m = r["episodio_mas_largo"]
+    ic = r.get("intervalo_congregacion")
     lineas = [
-        f"  Congregación: {r['pct_congregacion']} %   Abajo: {r['pct_abajo']} %   "
-        f"Sin dato: {r['pct_sin_dato']} %",
+        f"  Congregación: {r['pct_congregacion']} %"
+        + (f" (IC 95 %: {ic[0]}–{ic[1]})" if ic else "")
+        + f"   Abajo: {r['pct_abajo']} %   Sin dato: {r['pct_sin_dato']} %",
         f"  Episodios abajo (≥1 s): {r['episodios_abajo']}   "
         f"duración media: {r['duracion_media_episodio']} s   vistazos (<1 s): {r['vistazos']}",
         "  Episodio más largo: " + (f"{m['duracion']} s en el minuto {m['minuto']}" if m else "—"),

@@ -42,8 +42,8 @@ def test_sin_rostro_y_excluidos():
 
 
 def test_base_manual():
-    df, base, metodo = analisis.clasificar(fotogramas([10, 10, 10, 10]), Parametros(base=-10))
-    assert (base, metodo) == (-10, "manual")
+    df, base, metodo = analisis.clasificar(fotogramas([10, 10, 10, 10]), Parametros(base=-20))
+    assert (base, metodo) == (-20, "manual")
     assert set(df.clase) == {ABAJO}
 
 
@@ -99,3 +99,51 @@ def test_guardar_y_recalcular_dan_lo_mismo(tmp_path):
     r2 = analisis.guardar(tmp_path, df2, analisis.parametros_de(r1), {"titulo": "x"})
     for k in ("pct_congregacion", "pct_abajo", "episodios_abajo", "contacto"):
         assert r1[k] == r2[k]
+
+
+# ---------------------------------------------------------------- método 3
+def test_un_parpadeo_no_cuenta_como_abajo():
+    # Un solo fotograma con los ojos cerrados (0,25 s) es un parpadeo; dos seguidos ya cuentan.
+    ojos = [0.1] * 4 + [0.9] + [0.1] * 4 + [0.9, 0.9] + [0.1] * 4
+    df, _, _ = analisis.clasificar(fotogramas([0] * len(ojos), ojos=ojos), Parametros(base=0))
+    assert df.clase[4] == CONGREGACION
+    assert list(df.clase[9:11]) == [ABAJO, ABAJO]
+
+
+def test_ojos_cerrados_con_la_cabeza_levantada_no_es_leer():
+    df, _, _ = analisis.clasificar(fotogramas([-15] * 4, ojos=[0.9] * 4), Parametros(base=0))
+    assert set(df.clase) == {CONGREGACION}
+
+
+def test_calibra_con_los_ojos_arriba():
+    # 60 % del tiempo leyendo con la cabeza a +12°: la mediana general queda sesgada,
+    # la de los fotogramas con ojos arriba no.
+    pitches = [0] * 400 + [12] * 600
+    ojos = [0.1] * 400 + [0.6] * 600
+    _, base, metodo = analisis.clasificar(fotogramas(pitches, ojos=ojos), Parametros())
+    assert base == 0 and metodo == "mediana con los ojos arriba"
+    _, base, _ = analisis.clasificar(fotogramas(pitches, ojos=ojos), Parametros(calibrar_ojos=None))
+    assert base == 12
+
+
+def test_intervalo_es_repetible_y_contiene_el_valor(tmp_path):
+    rng = np.random.default_rng(1)
+    pitches = list(np.where(rng.random(4 * 600) < 0.3, 30, 0))
+    r = analisis.guardar(tmp_path, fotogramas(pitches), Parametros(), {})
+    lo, hi = r["intervalo_congregacion"]
+    assert lo <= r["pct_congregacion"] <= hi
+    assert analisis.guardar(tmp_path, fotogramas(pitches), Parametros(), {})["intervalo_congregacion"] == [lo, hi]
+    assert set(r["sensibilidad"]) == {"umbral_12", "umbral_18"}
+
+
+def test_recalcular_conserva_la_calibracion_por_tramo(tmp_path):
+    r = analisis.guardar(tmp_path, fotogramas([0] * 40), Parametros(calibrar=(0.0, 5.0)), {})
+    assert analisis.parametros_de(r).calibrar == (0.0, 5.0)
+
+
+def test_en_la_franja_dudosa_deciden_los_ojos():
+    # Cabeza a +17° (cerca del umbral de 15°): con los ojos arriba mira a la gente;
+    # con los ojos algo bajos, lee. Pasada la franja (+25°) es abajo siempre.
+    df, _, _ = analisis.clasificar(fotogramas([17, 17, 17, 17, 25, 25], ojos=[0.1, 0.1, 0.3, 0.3, 0.1, 0.1]),
+                                   Parametros(base=0))
+    assert list(df.clase) == [CONGREGACION, CONGREGACION, ABAJO, ABAJO, ABAJO, ABAJO]
