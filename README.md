@@ -3,7 +3,7 @@
 **¿Hacia dónde mira el predicador?** Mírame toma el video de un sermón y mide, segundo a segundo, cuánto tiempo el predicador mira a la congregación y cuánto baja la vista a sus notas. Corre en tu computadora, sin cuentas ni suscripciones.
 
 <p>
-  <img src="docs/img/mirando-notas.jpg" width="49%" alt="Reporte de Mírame: el predicador mira sus notas, con la cabeza inclinada 36 grados">
+  <img src="docs/img/mirando-notas.jpg" width="49%" alt="Reporte de Mírame: el predicador mira sus notas, con la cabeza inclinada">
   <img src="docs/img/mirando-congregacion.jpg" width="49%" alt="Reporte de Mírame: el predicador mira a la congregación">
 </p>
 
