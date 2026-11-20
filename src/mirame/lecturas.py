@@ -121,8 +121,10 @@ def transcribir(carpeta: Path, progreso: Progreso | None = None) -> Path:
     Los tiempos son los del video analizado (ya recortado), igual que fotogramas.csv."""
     progreso = progreso or Progreso()
     cfg = config.cargar()
-    if not cfg.puede_transcribir:
-        raise FaltaLlave("Falta la clave de Groq para transcribir. Agrégala en Ajustes.")
+    proveedor = cfg.transcripcion()
+    if proveedor is None:
+        raise FaltaLlave("Falta una clave de transcripción (Whisper). Agrégala en Ajustes.")
+    url_w, clave_w, modelo_w = proveedor
     video = carpeta / "video.mp4"
     total = duracion(video)
     frases = []
@@ -135,15 +137,15 @@ def transcribir(carpeta: Path, progreso: Progreso | None = None) -> Path:
                            check=True)
             progreso.aviso(f"Transcribiendo {formato_tiempo(inicio)}–"
                            f"{formato_tiempo(min(inicio + TRAMO_AUDIO, total))}", inicio / total)
-            cuerpo, tipo = _multipart({"model": cfg.whisper, "language": "es",
+            cuerpo, tipo = _multipart({"model": modelo_w, "language": "es",
                                        "response_format": "verbose_json",
                                        "timestamp_granularities[]": ["segment", "word"],
                                        "temperature": "0"}, mp3)
-            r = _pedir(f"{config.GROQ_URL}/audio/transcriptions", cfg.groq_clave, cuerpo, tipo, progreso)
+            r = _pedir(f"{url_w}/audio/transcriptions", clave_w, cuerpo, tipo, progreso)
             frases += _partir(r.get("segments", []), r.get("words", []), inicio)
             inicio += TRAMO_AUDIO
     destino = carpeta / "transcripcion.json"
-    destino.write_text(json.dumps({"modelo": cfg.whisper, "frases": frases}, ensure_ascii=False, indent=1) + "\n")
+    destino.write_text(json.dumps({"modelo": modelo_w, "frases": frases}, ensure_ascii=False, indent=1) + "\n")
     return destino
 
 

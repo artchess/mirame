@@ -1,0 +1,22 @@
+name: Proponer una mejora
+description: Una idea para que Mírame sea más útil o más preciso.
+labels: [mejora]
+body:
+  - type: textarea
+    id: problema
+    attributes:
+      label: ¿Qué problema resuelve?
+      description: Cuéntalo desde el uso, por ejemplo «cuando analizo un sermón con dos cámaras…».
+    validations:
+      required: true
+  - type: textarea
+    id: propuesta
+    attributes:
+      label: ¿Qué propones?
+    validations:
+      required: true
+  - type: textarea
+    id: evidencia
+    attributes:
+      label: Evidencia (si cambia el método de medición)
+      description: Muestras, cifras antes y después, o un sermón donde se vea el problema.

@@ -13,6 +13,8 @@ DELETE /api/analisis/<id>                borrar un análisis
 POST   /api/analisis/<id>/lecturas       separar lectura bíblica y oración
 POST   /api/analizar                     nuevo análisis {origen, inicio, fin, titulo, ...}
 POST   /api/subir?nombre=<archivo>       subir un video local (cuerpo = bytes del archivo)
+POST   /api/info                         título, duración y miniatura de un enlace {origen}
+POST   /api/estimar                      tiempo estimado y advertencias {duracion, inicio, fin, ...}
 GET    /api/trabajos                     trabajos en curso y recientes
 POST   /api/trabajos/<n>/cancelar
 GET    /api/ajustes   POST /api/ajustes  claves de IA
@@ -37,7 +39,7 @@ from importlib import resources
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from .. import __version__, biblioteca, capturar, config, lecturas, proceso, rutas
+from .. import __version__, biblioteca, capturar, config, lecturas, proceso, rutas, video
 from ..video import es_url, leer_tiempo
 from .trabajos import Cola
 
@@ -134,7 +136,13 @@ def probar_clave(datos: dict) -> dict:
     """Comprueba una clave contra la API. Usa la guardada si la recibida viene enmascarada."""
     guardada = config.cargar()
     tipo = datos.get("tipo")
-    if tipo == "groq":
+    if tipo == "whisper":
+        url = (datos.get("whisper_url") or "").strip()
+        clave = datos.get("whisper_clave") or ""
+        clave = guardada.whisper_clave if (not clave or "…" in clave) else clave
+        if not url or not clave:
+            raise ErrorPeticion(400, "Escribe la URL y la clave del servicio de transcripción.")
+    elif tipo == "groq":
         clave = datos.get("groq_clave") or ""
         clave = guardada.groq_clave if (not clave or "…" in clave) else clave
         if not clave:
@@ -301,6 +309,28 @@ def crear_manejador(app: App, puerto: int):
                 return self._json(app.separar(p[1]))
             if p == ["analizar"] and metodo == "POST":
                 return self._json(app.nuevo_analisis(self._cuerpo_json()))
+            if p == ["info"] and metodo == "POST":
+                origen = str(self._cuerpo_json().get("origen") or "").strip()
+                if not origen:
+                    raise ErrorPeticion(400, "Falta el enlace.")
+                try:
+                    return self._json(video.info(origen))
+                except FileNotFoundError as e:
+                    raise ErrorPeticion(400, str(e)) from None
+                except Exception as e:  # noqa: BLE001 — yt-dlp: enlace inválido, privado, sin red…
+                    raise ErrorPeticion(400, "No pude leer ese video. Revisa el enlace o tu conexión. "
+                                             f"({str(e)[:160]})") from None
+            if p == ["estimar"] and metodo == "POST":
+                d = self._cuerpo_json()
+                total = float(d.get("duracion") or 0)
+                inicio, fin = _tiempo(d.get("inicio")), _tiempo(d.get("fin"))
+                tramo = (fin if fin is not None else total) - (inicio or 0)
+                return self._json({
+                    **proceso.estimar(max(tramo, 0), float(d.get("fps") or 4), bool(d.get("lecturas")),
+                                      bool(d.get("descargar"))),
+                    "tramo": tramo,
+                    "advertencias": proceso.advertencias(total, inicio, fin),
+                })
             if p == ["subir"] and metodo == "POST":
                 return self._json(self._subir(q))
             if p == ["trabajos"] and metodo == "GET":

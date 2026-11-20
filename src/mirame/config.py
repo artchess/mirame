@@ -3,6 +3,10 @@
 Sin claves, Mírame mide igual la mirada. Con ellas, además transcribe el audio y
 separa la lectura bíblica y las oraciones, lo que hace el resultado más preciso.
 
+Dos pasos, cada uno con su proveedor (cualquier API compatible con OpenAI):
+- Transcripción (Whisper): Groq por defecto; o p. ej. OpenAI con `whisper-1`.
+- Análisis de la transcripción (marcar lecturas): Groq por defecto; o cualquier modelo de chat.
+
 Se guardan en `<carpeta de datos>/configuracion.json` con permisos solo para el
 usuario (0600). Las variables de entorno tienen prioridad sobre el archivo.
 """
@@ -22,18 +26,22 @@ LLM_POR_DEFECTO = "openai/gpt-oss-120b"
 # campo → variable de entorno que lo reemplaza
 ENTORNO = {
     "groq_clave": "GROQ_API_KEY",
+    "whisper_url": "MIRAME_WHISPER_URL",
+    "whisper_clave": "MIRAME_WHISPER_KEY",
     "whisper_modelo": "MIRAME_WHISPER_MODELO",
     "llm_url": "MIRAME_LLM_URL",
     "llm_clave": "MIRAME_LLM_KEY",
     "llm_modelo": "MIRAME_LLM_MODELO",
 }
-SECRETOS = ("groq_clave", "llm_clave")
+SECRETOS = ("groq_clave", "whisper_clave", "llm_clave")
 
 
 @dataclass
 class Configuracion:
     groq_clave: str = ""        # transcripción (Whisper) y, si no hay otro, el modelo de lecturas
-    whisper_modelo: str = ""    # vacío = whisper-large-v3-turbo
+    whisper_url: str = ""       # otro servicio de Whisper compatible con OpenAI; vacío = Groq
+    whisper_clave: str = ""
+    whisper_modelo: str = ""    # vacío = whisper-large-v3-turbo (Groq)
     llm_url: str = ""           # API compatible con OpenAI para marcar lecturas; vacío = Groq
     llm_clave: str = ""
     llm_modelo: str = ""        # vacío = openai/gpt-oss-120b en Groq
@@ -42,6 +50,16 @@ class Configuracion:
     @property
     def whisper(self) -> str:
         return self.whisper_modelo or WHISPER_POR_DEFECTO
+
+    def transcripcion(self) -> tuple[str, str, str] | None:
+        """(url, clave, modelo) para transcribir, o None si no hay con qué."""
+        if self.whisper_url:
+            if not self.whisper_clave or not self.whisper_modelo:
+                return None
+            return self.whisper_url.rstrip("/"), self.whisper_clave, self.whisper_modelo
+        if self.groq_clave:
+            return GROQ_URL, self.groq_clave, self.whisper
+        return None
 
     def modelo_lecturas(self) -> tuple[str, str, str] | None:
         """(url, clave, modelo) para marcar lecturas, o None si no hay con qué."""
@@ -55,7 +73,7 @@ class Configuracion:
 
     @property
     def puede_transcribir(self) -> bool:
-        return bool(self.groq_clave)
+        return self.transcripcion() is not None
 
     @property
     def puede_separar_lecturas(self) -> bool:
