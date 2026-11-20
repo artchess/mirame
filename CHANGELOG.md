@@ -4,6 +4,10 @@ Todos los cambios relevantes de Mírame. El formato sigue [Keep a Changelog](htt
 
 ## [Sin publicar]
 
+### Documentación
+
+- README: cómo actualizar, comprobar la versión, recalcular análisis anteriores e instalar una versión concreta.
+
 ## [0.4.0] — 2026-11-20
 
 ### Agregado
