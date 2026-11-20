@@ -20,14 +20,15 @@ Lo hice porque quería mejorar como predicador y me di cuenta de que, si no med�
 - **Qué porcentaje del sermón** miraste a la congregación, cuánto a tus notas y cuánto a la Biblia.
 - **Cuánto dura cada mirada** a la gente en promedio, y cuál fue la más larga.
 - **Cuántas veces bajaste a las notas** y cuál fue la lectura más larga.
+- **Cuánto puede variar el resultado:** el margen de error del porcentaje, para saber si la diferencia entre dos sermones es real.
 - **Un reporte** con el video del sermón y, al lado, una línea de tiempo que se pinta de verde (congregación), naranja (notas) o azul (Biblia). Un clic en cualquier punto lleva el video a ese momento.
 - **Capturas PNG** de 1920×1080 listas para un artículo o una presentación.
 
 ## Cómo lo mide
 
 1. Revisa el video **cuatro veces por segundo**. En cada cuadro ubica el rostro del predicador con [MediaPipe](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker) y mide dos cosas: cuánto inclina la cabeza y hacia dónde apuntan los ojos. Se puede leer con la cabeza recta, moviendo solo la mirada, y eso también cuenta.
-2. Aprende la **postura habitual** del predicador cuando mira a la gente (la mediana del sermón). Marca como «abajo» lo que pasa de 15° por debajo de esa postura, o cuando los ojos se bajan aunque la cabeza no se mueva.
-3. Agrupa por segundo y calcula los porcentajes, las miradas y los episodios de lectura.
+2. Aprende la **postura habitual** del predicador cuando mira a la gente, a partir de los momentos en que tiene los ojos arriba. Marca como «abajo» lo que pasa de unos 15° por debajo de esa postura, o cuando los ojos se bajan al menos medio segundo aunque la cabeza no se mueva. Cerca del límite deciden los ojos, y los parpadeos no cuentan.
+3. Agrupa por segundo y calcula los porcentajes, las miradas, los episodios de lectura y el margen de error.
 4. **Opcional, con IA:** transcribe el audio y un modelo de lenguaje marca dónde se lee la Biblia y dónde se ora. Así, leer el texto bíblico no cuenta igual que leer el manuscrito, y cerrar los ojos al orar no se confunde con mirar abajo.
 
 El detalle del método, sus límites y cómo validarlo están en [docs/como-funciona.md](docs/como-funciona.md).
@@ -102,7 +103,12 @@ Se abre en tu navegador, en `http://127.0.0.1:8710`. Solo tu computadora puede v
 
 ![Pantalla de inicio de Mírame](docs/img/app.jpg)
 
-**Nuevo análisis.** Pega el enlace de YouTube o elige un video de tu computadora. Si el video incluye alabanza o anuncios, escribe dónde empieza y dónde termina la predicación (`mm:ss` o `h:mm:ss`), porque solo así el resultado describe el sermón. En un Mac mini con chip de Apple, un sermón de una hora tarda unos 3 minutos; en una computadora más lenta tarda más.
+**Nuevo análisis.** Pega el enlace de YouTube o elige un video de tu computadora. Aparece el video con su título y duración, y eliges qué analizar:
+
+- **Todo el video**, si es solo la predicación.
+- **Solo un tramo**, si incluye alabanza, anuncios u oración final. Reproduce el video, páusalo donde empieza la predicación y pulsa **Marcar aquí**; haz lo mismo con el final. También puedes mover las manijas de la barra o escribir los tiempos (`mm:ss` o `h:mm:ss`).
+
+Antes de empezar, Mírame te dice cuánto tardará en tu computadora y te avisa si conviene recortar o si el tramo es demasiado corto. Mientras procesa, en **Biblioteca** ves el avance por etapas y cuánto falta. Como referencia, en un Mac mini con chip de Apple un sermón de una hora tarda unos 3 minutos.
 
 **Biblioteca.** Los análisis guardados, con sus cifras principales. Desde aquí abres el reporte, separas la lectura bíblica de un análisis viejo o lo borras. Abajo puedes vaciar la caché de videos descargados para liberar espacio; tus análisis no se tocan.
 
@@ -112,19 +118,24 @@ Se abre en tu navegador, en `http://127.0.0.1:8710`. Solo tu computadora puede v
 
 ### Claves de IA (opcional)
 
-Sin claves, Mírame mide la mirada igual. Con una clave agrega un paso: transcribe el sermón y separa la lectura bíblica y la oración. El resultado es más preciso porque leer la Biblia en voz alta deja de contar como leer notas, y orar con los ojos cerrados deja de contar como mirar abajo.
+> **Mírame funciona sin claves de IA.** Si agregas una clave de transcripción (Whisper), el resultado es más fino.
 
-La forma más simple es una sola clave de **Groq**, que es gratis: créala en [console.groq.com/keys](https://console.groq.com/keys) y pégala en **Ajustes**. Groq transcribe con Whisper y, con la misma clave, marca las lecturas con `openai/gpt-oss-120b`.
+Con una clave, Mírame agrega un paso: transcribe el sermón y separa la lectura bíblica y la oración. Leer la Biblia en voz alta deja de contar como leer notas, y orar con los ojos cerrados deja de contar como mirar abajo. Son dos pasos, y cada uno puede usar un proveedor distinto:
 
-Si prefieres otro modelo para marcar lecturas, en Ajustes elige **Otro proveedor compatible con OpenAI** y escribe la URL base, la clave y el modelo. Sirve cualquier API con el formato de OpenAI: OpenRouter, Azure, DeepSeek, un LiteLLM propio u Ollama en tu máquina. Conviene un modelo rápido y sin razonamiento, porque la tarea es marcar frases. La transcripción sigue usando Groq.
+| Paso | Recomendado | Alternativas |
+|---|---|---|
+| **1. Transcripción** (Whisper: audio a texto con tiempos) | [Groq](https://console.groq.com/keys), gratis: `whisper-large-v3-turbo` | OpenAI (`whisper-1`) o cualquier servicio de Whisper compatible con OpenAI |
+| **2. Análisis de la transcripción** (marcar lecturas y oraciones) | Groq con la misma clave: `openai/gpt-oss-120b` | OpenAI, OpenRouter, Azure, DeepSeek, un LiteLLM propio u Ollama en tu máquina |
+
+La forma más simple es una sola clave de **Groq**: créala en [console.groq.com/keys](https://console.groq.com/keys) y pégala en **Ajustes**, y cubre los dos pasos. Para el paso 2 conviene un modelo rápido y sin razonamiento, porque la tarea es marcar frases.
 
 Las claves se guardan en `~/Mirame/configuracion.json`, con permisos de lectura solo para tu usuario. También puedes darlas como variables de entorno, que tienen prioridad sobre el archivo:
 
 | Variable | Para qué |
 |---|---|
 | `GROQ_API_KEY` | Transcripción y, si no defines otro, el modelo de lecturas |
+| `MIRAME_WHISPER_URL`, `MIRAME_WHISPER_KEY`, `MIRAME_WHISPER_MODELO` | Otro servicio de Whisper compatible con OpenAI (p. ej. `https://api.openai.com/v1`, `whisper-1`) |
 | `MIRAME_LLM_URL`, `MIRAME_LLM_KEY`, `MIRAME_LLM_MODELO` | Otro modelo compatible con OpenAI para marcar lecturas (URL terminada en `/v1`) |
-| `MIRAME_WHISPER_MODELO` | Otro modelo de Whisper en Groq (por defecto `whisper-large-v3-turbo`) |
 | `MIRAME_DATOS` | Otra carpeta de datos en lugar de `~/Mirame` |
 
 ### Desde la terminal
@@ -201,18 +212,20 @@ Si la IA marcó mal una lectura, puedes corregir `lecturas.json` a mano y aplica
 
 ---
 
-## Desarrollo
+## Contribuir
+
+Las contribuciones son bienvenidas: errores, mejoras de la app y, sobre todo, mejoras del método con evidencia. El flujo de trabajo (ramas, pull requests, versiones y publicaciones) está en [CONTRIBUTING.md](CONTRIBUTING.md). Participar implica aceptar el [código de conducta](CODE_OF_CONDUCT.md). Las vulnerabilidades se reportan en privado (ver [SECURITY.md](SECURITY.md)).
 
 ```bash
 git clone https://github.com/jacomv/mirame && cd mirame
-uv sync --extra capturas
+uv sync --extra capturas --group dev
 uv run mirame instalar-capturas
 uv run mirame                 # la app con tu código
 uv run pytest                 # pruebas
 uv run ruff check src tests   # estilo
 ```
 
-La estructura del código y cómo contribuir están en [CONTRIBUTING.md](CONTRIBUTING.md).
+Los cambios de cada versión están en el [CHANGELOG](CHANGELOG.md).
 
 ## Licencia
 

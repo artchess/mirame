@@ -1,0 +1,40 @@
+name: Reportar un error
+description: Algo no funciona como debería.
+labels: [error]
+body:
+  - type: markdown
+    attributes:
+      value: Gracias por reportarlo. Con estos datos lo podemos reproducir más rápido.
+  - type: textarea
+    id: que_paso
+    attributes:
+      label: ¿Qué pasó?
+      description: Lo que hiciste y lo que viste. Si hay un mensaje de error, cópialo tal cual.
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: ¿Qué esperabas que pasara?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Versión de Mírame
+      description: La que muestra `mirame --version` o el pie de la app.
+      placeholder: "0.4.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: sistema
+    attributes:
+      label: Sistema operativo
+      options: [macOS, Windows, Linux]
+    validations:
+      required: true
+  - type: textarea
+    id: video
+    attributes:
+      label: Video (si aplica)
+      description: Enlace del sermón y tramo analizado. No compartas videos privados.
