@@ -1,6 +1,9 @@
 # Mírame
 
-**¿Hacia dónde mira el predicador?** Mírame toma el video de un sermón y mide, segundo a segundo, cuánto tiempo el predicador mira a la congregación y cuánto baja la vista a sus notas. Corre en tu computadora, sin cuentas ni suscripciones.
+**¿Hacia dónde mira el predicador, y hacia dónde apunta su sermón?** Mírame toma el video de un sermón y responde las dos preguntas:
+
+- **Hacia dónde mira el predicador.** Segundo a segundo, cuánto tiempo mira a la congregación y cuánto baja la vista a sus notas. Corre en tu computadora, sin cuentas ni suscripciones.
+- **Hacia dónde apunta el sermón** (opcional, con una clave de IA). La estructura y sus transiciones, el argumento y el clímax, cómo se conectó el pasaje con el evangelio de Cristo, las aplicaciones a la congregación y los pasajes bíblicos citados. Cada cosa con su minuto y segundo, para ir a ese momento del video con un clic.
 
 <p>
   <img src="docs/img/mirando-notas.jpg" width="49%" alt="Reporte de Mírame: el predicador mira sus notas, con la cabeza inclinada 36 grados">
@@ -9,20 +12,47 @@
 
 *A la izquierda, el predicador baja la vista a sus notas (recuadro naranja). A la derecha, mira a la congregación (recuadro verde).*
 
+<p>
+  <img src="docs/img/sermon-estructura.jpg" width="100%" alt="Pestaña «Sermón» del reporte de Mírame: al lado del video, las partes del sermón con el minuto y las palabras de cada transición; sobre la línea de tiempo, una franja con los puntos del sermón">
+</p>
+
+*La pestaña «Sermón»: las partes del sermón con el minuto y las palabras de cada transición, y cuánto miró el predicador a la congregación en cada una. Sobre la línea de tiempo, la franja de los puntos y una estrella en el clímax.*
+
 Lo hice porque quería mejorar como predicador y me di cuenta de que, si no medía, solo iba a seguir suponiendo. No encontré una herramienta que contara cuántas veces uno baja la mirada al predicar, así que la construí con ayuda de un modelo de IA. Es de código abierto: úsala, compártela y mejórala.
 
 — Jacobis Aldana
 
+**Sobre esta versión.** Es un fork del [proyecto original](https://github.com/jacomv/mirame) de Jacobis Aldana que añade el análisis del contenido del sermón.
+
+Al predicar no solo importa el contacto visual con la congregación. Importa también el contenido del mensaje: si tiene una buena estructura, si apunta a conocer y entender más al Señor Jesucristo y si lleva a una buena aplicación para la iglesia. Por eso me pareció bueno reunir los dos análisis en una sola herramienta. El nombre sigue diciendo lo que hace, ahora en dos sentidos: hacia dónde mira el predicador y hacia dónde apunta su sermón.
+
+Este añadido nace de un grupo de predicación expositiva en la Iglesia Evangélica Cuajimalpa, donde los varones de la iglesia nos preparamos para predicar la Palabra con fidelidad y expositivamente. La idea es ir afinando el análisis, quizá con un método claro como el de Simeon Trust.
+
+— Arturo Ferreiro
+
 ---
 
 ## Qué te dice
+
+### Sobre la mirada
 
 - **Qué porcentaje del sermón** miraste a la congregación, cuánto a tus notas y cuánto a la Biblia.
 - **Cuánto dura cada mirada** a la gente en promedio, y cuál fue la más larga.
 - **Cuántas veces bajaste a las notas** y cuál fue la lectura más larga.
 - **Un reporte** con el video del sermón y, al lado, una línea de tiempo que se pinta de verde (congregación), naranja (notas) o azul (Biblia). Un clic en cualquier punto lleva el video a ese momento.
 - **Capturas PNG** de 1920×1080 listas para un artículo o una presentación.
-- **Opcional, con IA: la estructura del sermón.** Las partes y dónde está la transición a cada una, si la estructura es clara, si el predicador anunció sus puntos y si la introducción prepara el argumento, cómo se desarrolla el argumento y dónde está el clímax, cómo conectó el pasaje con el evangelio de Cristo, las aplicaciones a la congregación y los pasajes bíblicos citados. Cada cosa con su minuto y segundo: un clic lleva el video a ese momento.
+
+### Sobre el sermón (opcional, con IA)
+
+- **La estructura:** las partes del sermón, el minuto y las palabras de cada transición, si la estructura es clara y si el predicador anunció sus puntos.
+- **La introducción:** si prepara el argumento principal o habla de otra cosa.
+- **El argumento y el clímax:** la tesis, los pasos con que se desarrolla y dónde está el clímax.
+- **El evangelio:** cómo se conectó el pasaje con el evangelio de Cristo y qué aspecto se mencionó (su vida, su muerte, su resurrección, su obra, su segunda venida, su reinado).
+- **Las aplicaciones** a la congregación: a quién van dirigidas y en qué se apoyan.
+- **Los pasajes bíblicos** leídos, citados o aludidos.
+- **Las dos cosas juntas:** cuánto miró a la congregación en cada parte del sermón.
+
+Todo va con su minuto y segundo en la pestaña «Sermón» del reporte: un clic lleva el video a ese momento, y el análisis completo se copia como texto.
 
 ## Cómo lo mide
 
@@ -30,7 +60,24 @@ Lo hice porque quería mejorar como predicador y me di cuenta de que, si no med�
 2. Aprende la **postura habitual** del predicador cuando mira a la gente (la mediana del sermón). Marca como «abajo» lo que pasa de 15° por debajo de esa postura, o cuando los ojos se bajan aunque la cabeza no se mueva.
 3. Agrupa por segundo y calcula los porcentajes, las miradas y los episodios de lectura.
 4. **Opcional, con IA:** transcribe el audio y un modelo de lenguaje marca dónde se lee la Biblia y dónde se ora. Así, leer el texto bíblico no cuenta igual que leer el manuscrito, y cerrar los ojos al orar no se confunde con mirar abajo.
-5. **Opcional, con IA:** sobre esa misma transcripción, un modelo de lenguaje resume la estructura y el contenido del sermón y señala en qué frase ocurre cada cosa. Los minutos salen de la transcripción, no del modelo.
+5. **Opcional, con IA:** sobre esa misma transcripción, un modelo de lenguaje analiza la estructura y el contenido del sermón (ver abajo).
+
+## Cómo analiza el sermón
+
+Es opcional y necesita una clave de IA. Trabaja sobre la transcripción, no sobre el video:
+
+1. **Transcribe el audio** con Whisper. Cada frase queda numerada, con su segundo de inicio y de fin.
+2. **Hace tres consultas a un modelo de lenguaje**, con las frases numeradas:
+   - *Estructura, argumento y clímax*, con el sermón completo.
+   - *Evangelio y aplicaciones*, con el sermón completo.
+   - *Pasajes citados*, en ventanas de 8 minutos para no dejar ninguno. La misma referencia repetida en menos de 45 segundos cuenta una vez.
+3. **El modelo no da minutos.** Señala el número de la frase, y el tiempo sale de la transcripción. Así cada minuto del reporte corresponde a algo que se dijo. Lo que apunta a una frase que no existe se descarta.
+4. **Describe, no completa.** Se le pide registrar solo lo que el predicador dijo, con citas literales, y no lo que un buen sermón debería tener. Un punto figura como «anunciado» solo si se dijo en voz alta, y las menciones de paso a Cristo («en el nombre de Jesús» al orar) no cuentan como evangelio.
+5. **Cruza el resultado con la mirada.** En cada parte del sermón dice qué porcentaje del tiempo el predicador miró a la congregación. Las cifras de la mirada no cambian.
+
+El resultado queda en `estructura.json` (lo que muestra la pestaña «Sermón»; se puede corregir a mano) y en `estructura.md` (lo mismo, como texto). Los modelos que se usan están en [Claves de IA](#claves-de-ia-opcional).
+
+Conviene leerlo como la opinión de un oyente atento, no como un veredicto. Es el juicio de un modelo de lenguaje sobre una transcripción automática: no oye el tono ni las pausas, puede dividir el sermón distinto a como lo pensó el predicador, y dos corridas pueden mover una transición una o dos frases.
 
 El detalle del método, sus límites y cómo validarlo están en [docs/como-funciona.md](docs/como-funciona.md).
 
@@ -121,6 +168,20 @@ Se abre en tu navegador, en `http://127.0.0.1:8710`. Solo tu computadora puede v
 - **Pasajes citados:** cada referencia bíblica, leída, citada de memoria, mencionada o aludida.
 
 Un clic en cualquier minuto lleva el video a ese momento y lo reproduce. Sobre la línea de tiempo aparece una franja con las partes del sermón y una estrella en el clímax. **Copiar** deja el análisis completo en el portapapeles como texto.
+
+<p>
+  <img src="docs/img/sermon-resumen.jpg" width="49%" alt="Pestaña «Sermón», sección Estructura: el tema, el pasaje, el resumen y si la estructura es clara, si anunció sus puntos y si tiene introducción">
+  <img src="docs/img/sermon-argumento.jpg" width="49%" alt="Pestaña «Sermón», sección Argumento y clímax: la tesis y los pasos del argumento, cada uno con su minuto">
+</p>
+<p>
+  <img src="docs/img/sermon-evangelio.jpg" width="49%" alt="Pestaña «Sermón», sección Evangelio: cómo se conectó el pasaje con Cristo y cada mención con su minuto y su cita">
+  <img src="docs/img/sermon-aplicaciones.jpg" width="49%" alt="Pestaña «Sermón», sección Aplicaciones: cada llamado a los oyentes, a quién va dirigido y en qué se apoya">
+</p>
+<p>
+  <img src="docs/img/sermon-pasajes.jpg" width="49%" alt="Pestaña «Sermón», sección Pasajes citados: cada referencia bíblica con su minuto y si fue leída, citada, mencionada o aludida">
+</p>
+
+*De izquierda a derecha y de arriba abajo: el resumen de la estructura, el argumento, el evangelio, las aplicaciones y los pasajes citados.*
 
 ### Claves de IA (opcional)
 
