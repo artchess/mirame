@@ -1,5 +1,13 @@
 # Cambios
 
+## Sin publicar
+
+- **Estructura del sermón** con IA (opcional): pestaña «Sermón» en el reporte con las partes y sus transiciones, si la estructura es clara, si se anunciaron los puntos y si la introducción va acorde con el argumento, el argumento y el clímax, la conexión con el evangelio, las aplicaciones y los pasajes citados. Cada cosa con su minuto, y un clic lleva el video ahí. Comando `mirame estructura`, botón «Analizar estructura» en la Biblioteca y casilla en «Nuevo análisis». Guarda `estructura.json` y `estructura.md`.
+- **Clave de OpenAI** como alternativa o complemento a la de Groq: transcribe con `whisper-1` y analiza el texto con los modelos de OpenAI.
+- La transcripción detecta cuando Whisper se queda repitiendo una frase o unas palabras sobre silencio o música, vuelve a pedir solo esa parte en pedazos más cortos y descarta las frases inventadas.
+- Lecturas y oración: instrucciones más estrictas sobre qué es una oración, y un aviso en el reporte si más del 15 % del sermón quedó excluido por estar marcado como oración.
+- `mirame recalcular`: `--ojos-seguidos` (filtra parpadeos) y `--zona-ojos` / `--ojos-arriba` (cabeza apenas inclinada con los ojos arriba cuenta como congregación).
+
 ## 0.3.0
 
 - **App local** en el navegador (`mirame`): nuevo análisis desde un enlace de YouTube o un video de la computadora, biblioteca de análisis (abrir, separar lecturas, borrar) y ajustes para las claves de IA, con avance en vivo y cancelación.

@@ -22,6 +22,7 @@ Lo hice porque quería mejorar como predicador y me di cuenta de que, si no med�
 - **Cuántas veces bajaste a las notas** y cuál fue la lectura más larga.
 - **Un reporte** con el video del sermón y, al lado, una línea de tiempo que se pinta de verde (congregación), naranja (notas) o azul (Biblia). Un clic en cualquier punto lleva el video a ese momento.
 - **Capturas PNG** de 1920×1080 listas para un artículo o una presentación.
+- **Opcional, con IA: la estructura del sermón.** Las partes y dónde está la transición a cada una, si la estructura es clara, si el predicador anunció sus puntos y si la introducción prepara el argumento, cómo se desarrolla el argumento y dónde está el clímax, cómo conectó el pasaje con el evangelio de Cristo, las aplicaciones a la congregación y los pasajes bíblicos citados. Cada cosa con su minuto y segundo: un clic lleva el video a ese momento.
 
 ## Cómo lo mide
 
@@ -29,10 +30,11 @@ Lo hice porque quería mejorar como predicador y me di cuenta de que, si no med�
 2. Aprende la **postura habitual** del predicador cuando mira a la gente (la mediana del sermón). Marca como «abajo» lo que pasa de 15° por debajo de esa postura, o cuando los ojos se bajan aunque la cabeza no se mueva.
 3. Agrupa por segundo y calcula los porcentajes, las miradas y los episodios de lectura.
 4. **Opcional, con IA:** transcribe el audio y un modelo de lenguaje marca dónde se lee la Biblia y dónde se ora. Así, leer el texto bíblico no cuenta igual que leer el manuscrito, y cerrar los ojos al orar no se confunde con mirar abajo.
+5. **Opcional, con IA:** sobre esa misma transcripción, un modelo de lenguaje resume la estructura y el contenido del sermón y señala en qué frase ocurre cada cosa. Los minutos salen de la transcripción, no del modelo.
 
 El detalle del método, sus límites y cómo validarlo están en [docs/como-funciona.md](docs/como-funciona.md).
 
-**Tu video no sale de tu computadora.** Todo el análisis de imagen es local. Si activas la IA, lo único que se envía es el audio (al servicio de transcripción) y el texto transcrito (al modelo que marca las lecturas).
+**Tu video no sale de tu computadora.** Todo el análisis de imagen es local. Si activas la IA, lo único que se envía es el audio (al servicio de transcripción) y el texto transcrito (al modelo que marca las lecturas y analiza la estructura).
 
 ---
 
@@ -102,28 +104,48 @@ Se abre en tu navegador, en `http://127.0.0.1:8710`. Solo tu computadora puede v
 
 ![Pantalla de inicio de Mírame](docs/img/app.jpg)
 
-**Nuevo análisis.** Pega el enlace de YouTube o elige un video de tu computadora. Si el video incluye alabanza o anuncios, escribe dónde empieza y dónde termina la predicación (`mm:ss` o `h:mm:ss`), porque solo así el resultado describe el sermón. En un Mac mini con chip de Apple, un sermón de una hora tarda unos 3 minutos; en una computadora más lenta tarda más.
+**Nuevo análisis.** Pega el enlace de YouTube o elige un video de tu computadora. Con una clave de IA puedes marcar además «Separar la lectura bíblica y la oración» y «Analizar la estructura del sermón». Si el video incluye alabanza o anuncios, escribe dónde empieza y dónde termina la predicación (`mm:ss` o `h:mm:ss`), porque solo así el resultado describe el sermón. En un Mac mini con chip de Apple, un sermón de una hora tarda unos 3 minutos; en una computadora más lenta tarda más.
 
-**Biblioteca.** Los análisis guardados, con sus cifras principales. Desde aquí abres el reporte, separas la lectura bíblica de un análisis viejo o lo borras. Abajo puedes vaciar la caché de videos descargados para liberar espacio; tus análisis no se tocan.
+**Biblioteca.** Los análisis guardados, con sus cifras principales. Desde aquí abres el reporte, separas la lectura bíblica o analizas la estructura de un análisis que ya tienes, o lo borras. Abajo puedes vaciar la caché de videos descargados para liberar espacio; tus análisis no se tocan.
 
 **Ajustes.** Las claves de IA. Son opcionales (ver abajo).
 
 **En el reporte:** espacio reproduce y pausa, ← y → saltan 5 segundos, `R` cambia a la vista de resumen sin video. **Capturar** guarda un PNG del momento actual en la carpeta `capturas/` del análisis.
 
+**La pestaña «Sermón»** aparece junto a «Mirada» cuando el sermón tiene su estructura analizada (tecla `S`). Muestra, al lado del video:
+
+- **Estructura:** el tema, si la estructura es clara, si anunció sus puntos, si la introducción va acorde con el argumento principal, y cada parte con el minuto de su transición, las palabras con que la hizo y cuánto miró a la congregación en esa parte.
+- **Argumento y clímax:** la tesis, los pasos del argumento en orden y el momento más alto del sermón.
+- **Evangelio:** cómo se conectó el pasaje con Cristo y qué aspectos se mencionaron (su vida, su muerte, su resurrección, su reinado, su segunda venida…).
+- **Aplicaciones:** cada llamado a los oyentes, a quién va dirigido y en qué parte del pasaje se apoya.
+- **Pasajes citados:** cada referencia bíblica, leída, citada de memoria, mencionada o aludida.
+
+Un clic en cualquier minuto lleva el video a ese momento y lo reproduce. Sobre la línea de tiempo aparece una franja con las partes del sermón y una estrella en el clímax. **Copiar** deja el análisis completo en el portapapeles como texto.
+
 ### Claves de IA (opcional)
 
-Sin claves, Mírame mide la mirada igual. Con una clave agrega un paso: transcribe el sermón y separa la lectura bíblica y la oración. El resultado es más preciso porque leer la Biblia en voz alta deja de contar como leer notas, y orar con los ojos cerrados deja de contar como mirar abajo.
+Sin claves, Mírame mide la mirada igual. Con una clave transcribe el sermón y, sobre la transcripción, hace dos cosas:
 
-La forma más simple es una sola clave de **Groq**, que es gratis: créala en [console.groq.com/keys](https://console.groq.com/keys) y pégala en **Ajustes**. Groq transcribe con Whisper y, con la misma clave, marca las lecturas con `openai/gpt-oss-120b`.
+- **Separa la lectura bíblica y la oración.** El resultado es más preciso porque leer la Biblia en voz alta deja de contar como leer notas, y orar con los ojos cerrados deja de contar como mirar abajo.
+- **Analiza la estructura del sermón** (la pestaña «Sermón» del reporte). No cambia las cifras de la mirada.
 
-Si prefieres otro modelo para marcar lecturas, en Ajustes elige **Otro proveedor compatible con OpenAI** y escribe la URL base, la clave y el modelo. Sirve cualquier API con el formato de OpenAI: OpenRouter, Azure, DeepSeek, un LiteLLM propio u Ollama en tu máquina. Conviene un modelo rápido y sin razonamiento, porque la tarea es marcar frases. La transcripción sigue usando Groq.
+Basta **una** clave, y se pega en **Ajustes**:
+
+- **Groq**, que es gratis: créala en [console.groq.com/keys](https://console.groq.com/keys). Transcribe con Whisper y analiza el texto con `openai/gpt-oss-120b`. En la capa gratuita, un sermón largo puede pasar el límite de texto por minuto al analizar la estructura.
+- **OpenAI**, que es de pago (unos centavos de dólar por sermón): créala en [platform.openai.com/api-keys](https://platform.openai.com/api-keys). Transcribe con `whisper-1`, marca las lecturas con `gpt-5.4` y analiza la estructura con `gpt-5.5`.
+
+Si pones las dos, Groq transcribe y OpenAI analiza el texto.
+
+Si prefieres otro modelo de lenguaje, en Ajustes elige **Otro proveedor compatible con OpenAI** y escribe la URL base, la clave y el modelo. Sirve cualquier API con el formato de OpenAI: OpenRouter, Azure, DeepSeek, un LiteLLM propio u Ollama en tu máquina. Para la estructura conviene un modelo capaz, que pueda leer el sermón completo de una vez. La transcripción sigue usando Groq u OpenAI.
 
 Las claves se guardan en `~/Mirame/configuracion.json`, con permisos de lectura solo para tu usuario. También puedes darlas como variables de entorno, que tienen prioridad sobre el archivo:
 
 | Variable | Para qué |
 |---|---|
-| `GROQ_API_KEY` | Transcripción y, si no defines otro, el modelo de lecturas |
-| `MIRAME_LLM_URL`, `MIRAME_LLM_KEY`, `MIRAME_LLM_MODELO` | Otro modelo compatible con OpenAI para marcar lecturas (URL terminada en `/v1`) |
+| `GROQ_API_KEY` | Transcripción y, si no hay otro, el modelo de lenguaje |
+| `OPENAI_API_KEY` | Modelo de lenguaje y, si no hay clave de Groq, la transcripción |
+| `MIRAME_OPENAI_MODELO` | Otro modelo de OpenAI para las lecturas y la estructura |
+| `MIRAME_LLM_URL`, `MIRAME_LLM_KEY`, `MIRAME_LLM_MODELO` | Otro modelo compatible con OpenAI para las lecturas y la estructura (URL terminada en `/v1`) |
 | `MIRAME_WHISPER_MODELO` | Otro modelo de Whisper en Groq (por defecto `whisper-large-v3-turbo`) |
 | `MIRAME_DATOS` | Otra carpeta de datos en lugar de `~/Mirame` |
 
@@ -141,6 +163,10 @@ mirame ver <análisis>
 
 # Separar la lectura bíblica y la oración (requiere clave de IA)
 mirame lecturas <análisis>
+
+# Estructura del sermón: partes, argumento, evangelio, aplicaciones y pasajes (requiere clave de IA)
+mirame estructura <análisis>
+mirame estructura <análisis> --mostrar               # verla otra vez sin consultar a la IA
 
 # Capturas PNG: cuatro momentos elegidos solos, o los que digas
 mirame capturar <análisis>
@@ -177,13 +203,15 @@ Todo vive en `~/Mirame` (en Windows, `C:\Users\<tu usuario>\Mirame`):
 │   ├── fotogramas.csv        una fila por fotograma (4 por segundo)
 │   ├── transcripcion.json    si usaste IA: frases con su tiempo
 │   ├── lecturas.json         si usaste IA: tramos de lectura bíblica y oración (editable)
+│   ├── estructura.json       si usaste IA: la estructura y el contenido del sermón (editable)
+│   ├── estructura.md         lo mismo, como texto para leer o compartir
 │   └── capturas/             los PNG
 ├── descargas/                caché de videos completos de YouTube
 ├── modelos/                  modelo de MediaPipe
 └── configuracion.json        claves de IA
 ```
 
-Si la IA marcó mal una lectura, puedes corregir `lecturas.json` a mano y aplicar el cambio con `mirame lecturas <análisis> --solo-recalcular`.
+Si la IA marcó mal una lectura, puedes corregir `lecturas.json` a mano y aplicar el cambio con `mirame lecturas <análisis> --solo-recalcular`. Lo mismo con `estructura.json`: corrígelo y regenera el reporte con `mirame reporte <análisis>`.
 
 ---
 

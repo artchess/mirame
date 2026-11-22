@@ -1,7 +1,12 @@
 """Claves y modelos de IA opcionales.
 
-Sin claves, Mírame mide igual la mirada. Con ellas, además transcribe el audio y
-separa la lectura bíblica y las oraciones, lo que hace el resultado más preciso.
+Sin claves, Mírame mide igual la mirada. Con ellas, además transcribe el audio,
+separa la lectura bíblica y las oraciones (lo que hace el resultado más preciso) y
+analiza la estructura y el contenido del sermón.
+
+Basta una clave, de Groq o de OpenAI:
+- Transcripción (Whisper): Groq si hay clave; si no, OpenAI.
+- Modelo de lenguaje: el proveedor propio si se configuró; si no, OpenAI; si no, Groq.
 
 Se guardan en `<carpeta de datos>/configuracion.json` con permisos solo para el
 usuario (0600). Las variables de entorno tienen prioridad sobre el archivo.
@@ -18,6 +23,10 @@ from . import rutas
 GROQ_URL = "https://api.groq.com/openai/v1"
 WHISPER_POR_DEFECTO = "whisper-large-v3-turbo"
 LLM_POR_DEFECTO = "openai/gpt-oss-120b"
+OPENAI_URL = "https://api.openai.com/v1"
+WHISPER_OPENAI = "whisper-1"             # el único de OpenAI que devuelve el tiempo de cada palabra
+LLM_OPENAI = "gpt-5.4"                   # marcar lecturas: rápido; el «mini» confunde predicación con oración
+LLM_OPENAI_ESTRUCTURA = "gpt-5.5"        # estructura del sermón: razona sobre el sermón completo
 
 # campo → variable de entorno que lo reemplaza
 ENTORNO = {
@@ -26,8 +35,10 @@ ENTORNO = {
     "llm_url": "MIRAME_LLM_URL",
     "llm_clave": "MIRAME_LLM_KEY",
     "llm_modelo": "MIRAME_LLM_MODELO",
+    "openai_clave": "OPENAI_API_KEY",
+    "openai_modelo": "MIRAME_OPENAI_MODELO",
 }
-SECRETOS = ("groq_clave", "llm_clave")
+SECRETOS = ("groq_clave", "llm_clave", "openai_clave")
 
 
 @dataclass
@@ -37,29 +48,48 @@ class Configuracion:
     llm_url: str = ""           # API compatible con OpenAI para marcar lecturas; vacío = Groq
     llm_clave: str = ""
     llm_modelo: str = ""        # vacío = openai/gpt-oss-120b en Groq
+    openai_clave: str = ""      # transcripción (whisper-1) y modelo de lenguaje con OpenAI
+    openai_modelo: str = ""     # vacío = gpt-5.4 para lecturas y gpt-5.5 para la estructura
 
     # ---- valores efectivos
-    @property
-    def whisper(self) -> str:
-        return self.whisper_modelo or WHISPER_POR_DEFECTO
+    def transcripcion(self) -> tuple[str, str, str] | None:
+        """(url, clave, modelo) de Whisper, o None si no hay clave."""
+        if self.groq_clave:
+            return GROQ_URL, self.groq_clave, self.whisper_modelo or WHISPER_POR_DEFECTO
+        if self.openai_clave:
+            return OPENAI_URL, self.openai_clave, WHISPER_OPENAI
+        return None
 
-    def modelo_lecturas(self) -> tuple[str, str, str] | None:
-        """(url, clave, modelo) para marcar lecturas, o None si no hay con qué."""
+    def _modelo(self, de_openai: str) -> tuple[str, str, str] | None:
         if self.llm_url:
             if not self.llm_clave or not self.llm_modelo:
                 return None
             return self.llm_url.rstrip("/"), self.llm_clave, self.llm_modelo
+        if self.openai_clave:
+            return OPENAI_URL, self.openai_clave, self.openai_modelo or de_openai
         if self.groq_clave:
             return GROQ_URL, self.groq_clave, self.llm_modelo or LLM_POR_DEFECTO
         return None
 
+    def modelo_lecturas(self) -> tuple[str, str, str] | None:
+        """(url, clave, modelo) para marcar lecturas, o None si no hay con qué."""
+        return self._modelo(LLM_OPENAI)
+
+    def modelo_estructura(self) -> tuple[str, str, str] | None:
+        """(url, clave, modelo) para analizar la estructura del sermón."""
+        return self._modelo(LLM_OPENAI_ESTRUCTURA)
+
     @property
     def puede_transcribir(self) -> bool:
-        return bool(self.groq_clave)
+        return self.transcripcion() is not None
 
     @property
     def puede_separar_lecturas(self) -> bool:
         return self.puede_transcribir and self.modelo_lecturas() is not None
+
+    @property
+    def puede_analizar_estructura(self) -> bool:
+        return self.puede_transcribir and self.modelo_estructura() is not None
 
     def publica(self) -> dict:
         """Para mostrar en la interfaz: las claves enmascaradas."""
@@ -69,6 +99,7 @@ class Configuracion:
         d["desde_entorno"] = [k for k, v in ENTORNO.items() if os.environ.get(v)]
         d["puede_transcribir"] = self.puede_transcribir
         d["puede_separar_lecturas"] = self.puede_separar_lecturas
+        d["puede_analizar_estructura"] = self.puede_analizar_estructura
         return d
 
 

@@ -11,6 +11,7 @@ GET    /api/estado                       versión, carpeta de datos, ajustes y c
 GET    /api/analisis                     biblioteca
 DELETE /api/analisis/<id>                borrar un análisis
 POST   /api/analisis/<id>/lecturas       separar lectura bíblica y oración
+POST   /api/analisis/<id>/estructura     analizar la estructura y el contenido del sermón
 POST   /api/analizar                     nuevo análisis {origen, inicio, fin, titulo, ...}
 POST   /api/subir?nombre=<archivo>       subir un video local (cuerpo = bytes del archivo)
 GET    /api/trabajos                     trabajos en curso y recientes
@@ -89,6 +90,7 @@ class App:
             origen=origen, inicio=inicio, fin=fin, titulo=(datos.get("titulo") or "").strip() or None,
             fps=fps, umbral=umbral, umbral_ojos=None if datos.get("solo_cabeza") else umbral_ojos,
             separar_lecturas=bool(datos.get("separar_lecturas")),
+            estructura=bool(datos.get("estructura")),
         )
 
         def correr(progreso):
@@ -111,6 +113,22 @@ class App:
             return id_
 
         return self.cola.agregar("lecturas", titulo, correr, analisis=id_).publico()
+
+    def estructura(self, id_: str) -> dict:
+        carpeta = biblioteca.carpeta_de(id_)
+        if self.cola.ocupado(id_):
+            raise ErrorPeticion(409, "Ese análisis ya tiene un trabajo en curso.")
+        if not config.cargar().puede_analizar_estructura:
+            raise ErrorPeticion(400, "Primero agrega una clave de IA en Ajustes.")
+        if not (carpeta / "resumen.json").exists():
+            raise ErrorPeticion(400, "Ese análisis no terminó: vuelve a analizarlo.")
+        titulo = biblioteca.ficha(carpeta)["titulo"]
+
+        def correr(progreso):
+            proceso.analizar_estructura(carpeta, progreso)
+            return id_
+
+        return self.cola.agregar("estructura", titulo, correr, analisis=id_).publico()
 
     def borrar(self, id_: str) -> None:
         biblioteca.carpeta_de(id_)
@@ -140,6 +158,12 @@ def probar_clave(datos: dict) -> dict:
         if not clave:
             raise ErrorPeticion(400, "Escribe la clave de Groq.")
         url = config.GROQ_URL
+    elif tipo == "openai":
+        clave = datos.get("openai_clave") or ""
+        clave = guardada.openai_clave if (not clave or "…" in clave) else clave
+        if not clave:
+            raise ErrorPeticion(400, "Escribe la clave de OpenAI.")
+        url = config.OPENAI_URL
     else:
         url = (datos.get("llm_url") or "").strip()
         clave = datos.get("llm_clave") or ""
@@ -299,6 +323,8 @@ def crear_manejador(app: App, puerto: int):
                 return self._json({"ok": True})
             if len(p) == 3 and p[0] == "analisis" and p[2] == "lecturas" and metodo == "POST":
                 return self._json(app.separar(p[1]))
+            if len(p) == 3 and p[0] == "analisis" and p[2] == "estructura" and metodo == "POST":
+                return self._json(app.estructura(p[1]))
             if p == ["analizar"] and metodo == "POST":
                 return self._json(app.nuevo_analisis(self._cuerpo_json()))
             if p == ["subir"] and metodo == "POST":
