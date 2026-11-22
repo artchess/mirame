@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import analisis, config, lecturas, reporte, rutas, video
+from . import analisis, config, estructura, lecturas, reporte, rutas, video
 from .progreso import Cancelado, Cronometro, Progreso
 from .video import formato_tiempo
 
@@ -33,6 +33,7 @@ class Opciones:
     ancho_minimo: int = 0
     umbral_ojos: float | None = 0.45              # None = solo la cabeza
     separar_lecturas: bool | None = None          # None = sí, si hay claves configuradas
+    estructura: bool | None = None                # analizar estructura y contenido; None = sí, si hay claves
     salida: Path | None = None                    # carpeta del análisis; por defecto una nueva
 
     def parametros(self) -> analisis.Parametros:
@@ -53,7 +54,8 @@ def carpeta_nueva(id_video: str) -> Path:
 
 def analizar(op: Opciones, progreso: Progreso | None = None) -> tuple[Path, dict]:
     """Descarga, recorta, mide la mirada fotograma a fotograma y genera el reporte.
-    Si hay claves de IA, además separa la lectura bíblica y la oración."""
+    Si hay claves de IA, además separa la lectura bíblica y la oración, y analiza la
+    estructura del sermón."""
     progreso = progreso or Progreso()
 
     progreso.etapa_nueva("Obteniendo el video")
@@ -108,6 +110,17 @@ def _analizar(op: Opciones, fuente: video.Fuente, carpeta: Path, progreso: Progr
             progreso.aviso(f"No se separó la lectura bíblica: {e}")
         except Exception as e:  # noqa: BLE001 — el análisis de la mirada ya quedó guardado
             progreso.aviso(f"No se separó la lectura bíblica: {e}")
+
+    con_estructura = op.estructura
+    if con_estructura is None:
+        con_estructura = config.cargar().puede_analizar_estructura
+    if con_estructura:
+        try:
+            analizar_estructura(carpeta, progreso)
+        except Cancelado:
+            raise
+        except Exception as e:  # noqa: BLE001 — el análisis de la mirada ya quedó guardado
+            progreso.aviso(f"No se analizó la estructura del sermón: {e}")
     return carpeta, resumen
 
 
@@ -155,6 +168,19 @@ def separar_lecturas(carpeta: Path, progreso: Progreso | None = None, retranscri
         progreso.etapa_nueva("Marcando lectura bíblica y oración")
         lecturas.marcar_lecturas(carpeta, progreso)
     return recalcular(carpeta)
+
+
+def analizar_estructura(carpeta: Path, progreso: Progreso | None = None, retranscribir: bool = False) -> dict:
+    """Transcribe (si hace falta), analiza la estructura y el contenido del sermón, y
+    regenera el reporte. No cambia las cifras de la mirada."""
+    progreso = progreso or Progreso()
+    if retranscribir or not (carpeta / "transcripcion.json").exists():
+        progreso.etapa_nueva("Transcribiendo el audio")
+        lecturas.transcribir(carpeta, progreso)
+    progreso.etapa_nueva("Analizando la estructura del sermón")
+    datos = estructura.analizar(carpeta, progreso)
+    reporte.generar(carpeta)
+    return datos
 
 
 def recalcular(carpeta: Path, cambios: dict | None = None) -> dict:

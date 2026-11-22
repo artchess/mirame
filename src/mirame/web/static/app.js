@@ -103,6 +103,14 @@ async function verNuevo() {
     op.classList.add("apagado");
     $("#lecturas-nota").innerHTML = `Necesita una clave de IA (Groq es gratis). <a href="#/ajustes">Agrégala en Ajustes</a>. Sin ella el análisis funciona igual, solo que la lectura bíblica cuenta como mirar abajo.`;
   }
+  const chkE = f.estructura;
+  if (aj.puede_analizar_estructura) {
+    chkE.checked = true;
+  } else {
+    chkE.disabled = true;
+    $("#op-estructura").classList.add("apagado");
+    $("#estructura-nota").innerHTML = `Necesita una clave de IA. <a href="#/ajustes">Agrégala en Ajustes</a>.`;
+  }
   if (ESTADO && !ESTADO.ffmpeg) {
     mostrarError("error-nuevo", "No encuentro ffmpeg en tu computadora. Instálalo antes de analizar (ver README).");
   }
@@ -120,6 +128,7 @@ async function verNuevo() {
     ocultarError("error-nuevo");
     const datos = Object.fromEntries(new FormData(f));
     datos.separar_lecturas = chk.checked;
+    datos.estructura = chkE.checked;
     datos.solo_cabeza = f.solo_cabeza.checked;
     const b = $("#b-analizar");
     b.disabled = true;
@@ -158,6 +167,7 @@ async function verBiblioteca() {
   }, 1000);
 }
 
+const TIPOS_TRABAJO = { lecturas: "Separar lectura bíblica y oración", estructura: "Analizar la estructura del sermón" };
 const ETAPAS = { en_cola: "En cola", corriendo: "Analizando", listo: "Listo", error: "Error", cancelado: "Cancelado" };
 let ultimosTrabajos = "";
 
@@ -175,12 +185,12 @@ async function pintarTrabajos() {
         <div class="trabajo-cabeza">
           <div>
             <div class="trabajo-titulo">${esc(t.titulo)}</div>
-            <div class="trabajo-detalle">${t.tipo === "lecturas" ? "Separar lectura bíblica y oración" : "Nuevo análisis"}</div>
+            <div class="trabajo-detalle">${TIPOS_TRABAJO[t.tipo] || "Nuevo análisis"}</div>
           </div>
           <div>
             <span class="etiqueta ${t.estado}">${ETAPAS[t.estado]}</span>
             ${activo ? `<button class="texto rojo chico" data-cancelar="${t.id}">Cancelar</button>` : ""}
-            ${t.estado === "listo" && t.analisis ? `<a class="boton chico" href="/analisis/${encodeURIComponent(t.analisis)}/reporte.html">Abrir reporte</a>` : ""}
+            ${t.estado === "listo" && t.analisis ? `<a class="boton chico" href="/analisis/${encodeURIComponent(t.analisis)}/reporte.html${t.tipo === "estructura" ? "?vista=sermon" : ""}">Abrir reporte</a>` : ""}
           </div>
         </div>
         ${activo ? `<div class="barra-avance ${pct == null ? "indef" : ""}"><span style="width:${pct ?? 0}%"></span></div>
@@ -208,6 +218,7 @@ async function pintarLista() {
     return;
   }
   const puedeSeparar = ESTADO?.ajustes?.puede_separar_lecturas;
+  const puedeEstructura = ESTADO?.ajustes?.puede_analizar_estructura;
   caja.innerHTML = lista.map(a => {
     const listo = a.pct_congregacion != null;
     const reparto = listo ? `<div class="reparto">
@@ -231,6 +242,8 @@ async function pintarLista() {
       <div class="analisis-acciones">
         ${a.tiene_reporte ? `<a class="boton" href="/analisis/${encodeURIComponent(a.id)}/reporte.html">Abrir reporte</a>` : ""}
         ${listo && !a.con_lecturas ? `<button class="secundario chico" data-separar="${esc(a.id)}" ${puedeSeparar ? "" : "disabled title='Agrega una clave de IA en Ajustes'"}>Separar lectura bíblica</button>` : ""}
+        ${listo && a.con_estructura ? `<a class="boton secundario chico" href="/analisis/${encodeURIComponent(a.id)}/reporte.html?vista=sermon">Ver estructura</a>` : ""}
+        ${listo && !a.con_estructura ? `<button class="secundario chico" data-estructura="${esc(a.id)}" ${puedeEstructura ? "" : "disabled title='Agrega una clave de IA en Ajustes'"}>Analizar estructura</button>` : ""}
         <button class="texto rojo chico" data-borrar="${esc(a.id)}" data-titulo="${esc(a.titulo)}" data-mb="${a.megabytes}">Borrar</button>
       </div>
     </div>`;
@@ -253,6 +266,12 @@ async function pintarLista() {
     const s = e.target.closest("[data-separar]");
     if (s) {
       try { await api(`analisis/${encodeURIComponent(s.dataset.separar)}/lecturas`, { method: "POST" }); ultimosTrabajos = ""; pintarTrabajos(); toast("Separando la lectura bíblica…"); }
+      catch (err) { toast(err.message); }
+      return;
+    }
+    const es = e.target.closest("[data-estructura]");
+    if (es) {
+      try { await api(`analisis/${encodeURIComponent(es.dataset.estructura)}/estructura`, { method: "POST" }); ultimosTrabajos = ""; pintarTrabajos(); toast("Analizando la estructura del sermón…"); }
       catch (err) { toast(err.message); }
     }
   };
@@ -280,7 +299,7 @@ async function verAjustes() {
   plantilla("t-ajustes");
   const f = $("#f-ajustes");
   const aj = await api("ajustes");
-  for (const k of ["groq_clave", "llm_url", "llm_clave", "llm_modelo"]) f[k].value = aj[k] || "";
+  for (const k of ["groq_clave", "openai_clave", "llm_url", "llm_clave", "llm_modelo"]) f[k].value = aj[k] || "";
   const otro = !!aj.llm_url;
   f.proveedor.value = otro ? "otro" : "groq";
   $("#otro-proveedor").hidden = !otro;
@@ -307,7 +326,8 @@ async function verAjustes() {
       caja.className = "resultado-prueba"; caja.textContent = "Probando…";
       try {
         const r = await api("ajustes/probar", { method: "POST", body: {
-          tipo, groq_clave: f.groq_clave.value, llm_url: f.llm_url.value, llm_clave: f.llm_clave.value } });
+          tipo, groq_clave: f.groq_clave.value, openai_clave: f.openai_clave.value,
+          llm_url: f.llm_url.value, llm_clave: f.llm_clave.value } });
         caja.className = `resultado-prueba ${r.ok ? "ok" : "mal"}`;
         caja.textContent = (r.ok ? "✓ " : "✗ ") + r.mensaje;
         if (r.ok && tipo === "llm") $("#modelos").innerHTML = r.modelos.map(m => `<option value="${esc(m)}">`).join("");
@@ -326,6 +346,7 @@ async function verAjustes() {
     try {
       await api("ajustes", { method: "POST", body: {
         groq_clave: f.groq_clave.value,
+        openai_clave: f.openai_clave.value,
         llm_url: otro ? f.llm_url.value : "",
         llm_clave: otro ? f.llm_clave.value : "",
         llm_modelo: otro ? f.llm_modelo.value : "",
