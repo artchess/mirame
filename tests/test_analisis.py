@@ -34,6 +34,23 @@ def test_ojos_bajados_cuentan_como_abajo_aunque_la_cabeza_este_recta():
     assert set(df2.clase) == {CONGREGACION}
 
 
+def test_parpadeos_no_cuentan_como_abajo():
+    # Un fotograma suelto de ojos bajados es un parpadeo; tres seguidos, lectura.
+    ojos = [0.1, 0.8, 0.1, 0.8, 0.8, 0.8, 0.1]
+    df, _, _ = analisis.clasificar(fotogramas([0] * 7, ojos=ojos), Parametros(umbral_ojos=0.55, ojos_seguidos=3))
+    assert list(df.clase) == [CONGREGACION] * 3 + [ABAJO] * 3 + [CONGREGACION]
+
+
+def test_ojos_arriba_ganan_a_la_cabeza_dentro_de_la_zona():
+    # base 0, corte 2, zona hasta 8: con ojos arriba (<0.35) la cabeza a +4 es congregación.
+    df = fotogramas([0] * 8 + [4, 4, 4, 12], ojos=[0.1] * 8 + [0.2, 0.4, 0.7, 0.2])
+    p = Parametros(umbral=2, umbral_ojos=0.55, zona_ojos=6, ojos_arriba=0.35)
+    df, _, _ = analisis.clasificar(df, p)
+    assert list(df.clase[8:]) == [CONGREGACION, ABAJO, ABAJO, ABAJO]
+    df0, _, _ = analisis.clasificar(fotogramas([0] * 8 + [4], ojos=[0.1] * 9), Parametros(umbral=2, umbral_ojos=0.55))
+    assert df0.clase.iloc[-1] == ABAJO
+
+
 def test_sin_rostro_y_excluidos():
     df = fotogramas([0, None, 0, 0, 30, 30, 30, 30])
     df, _, _ = analisis.clasificar(df, Parametros(excluir=[(1.0, 2.0)]))

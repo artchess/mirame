@@ -25,6 +25,9 @@ class Parametros:
     excluir: list[tuple[float, float]] = field(default_factory=list)
     ancho_minimo: int = 0                           # rostros más angostos cuentan como sin dato
     umbral_ojos: float | None = 0.45                # puntaje de ojos bajados; None = solo la cabeza
+    zona_ojos: float = 0.0                          # grados sobre el corte en que unos ojos arriba ganan a la cabeza
+    ojos_arriba: float = 0.35                       # puntaje de ojos por debajo del cual mira al frente
+    ojos_seguidos: int = 1                          # fotogramas seguidos de ojos bajados para contar (filtra parpadeos)
 
 
 def calibrar(df: pd.DataFrame, p: Parametros) -> tuple[float, str]:
@@ -55,14 +58,38 @@ def clasificar(df: pd.DataFrame, p: Parametros) -> tuple[pd.DataFrame, float, st
     base, metodo = calibrar(df, p)
     corte = base + p.umbral
     abajo = (df.pitch > corte).values
+    if p.umbral_ojos is not None and p.zona_ojos > 0 and "ojos" in df.columns:
+        # Cabeza apenas pasada del corte pero ojos claramente arriba: mira a la congregación.
+        gris = abajo & (df.pitch <= corte + p.zona_ojos).values
+        abajo = abajo & ~(gris & (df.ojos.fillna(1) < p.ojos_arriba).values)
     if p.umbral_ojos is not None and "ojos" in df.columns:
         # Ojos bajados aunque la cabeza siga recta: lectura con la mirada.
-        abajo = abajo | (df.ojos.fillna(-1) >= p.umbral_ojos).values
+        ojos = (df.ojos.fillna(-1) >= p.umbral_ojos).values & ~abajo
+        if p.ojos_seguidos > 1:
+            ojos = _rachas_minimas(ojos, p.ojos_seguidos)
+        abajo = abajo | ojos
     clase = np.where(abajo, ABAJO, CONGREGACION)
     clase = np.where(df.rostro, clase, SIN_DATO)
     clase = np.where(df.excluido_, EXCLUIDO, clase)
     df["clase"] = clase
     return df.drop(columns="excluido_"), base, metodo
+
+
+def _rachas_minimas(marcas: np.ndarray, minimo: int) -> np.ndarray:
+    """Deja solo las rachas de True de al menos `minimo` elementos seguidos."""
+    salida = np.zeros_like(marcas)
+    i, n = 0, len(marcas)
+    while i < n:
+        if marcas[i]:
+            j = i
+            while j < n and marcas[j]:
+                j += 1
+            if j - i >= minimo:
+                salida[i:j] = True
+            i = j
+        else:
+            i += 1
+    return salida
 
 
 def por_segundo(df: pd.DataFrame, corte: float) -> pd.DataFrame:
@@ -227,6 +254,9 @@ def resumir(df: pd.DataFrame, seg: pd.DataFrame, p: Parametros, base: float, met
             "excluir": [[a_, b_] for a_, b_ in p.excluir],
             "ancho_minimo": p.ancho_minimo,
             "umbral_ojos": p.umbral_ojos,
+            "zona_ojos": p.zona_ojos,
+            "ojos_arriba": p.ojos_arriba,
+            "ojos_seguidos": p.ojos_seguidos,
             "metodo": "cabeza" if p.umbral_ojos is None else "cabeza + ojos",
             "version": __version__,
         },
@@ -301,6 +331,9 @@ def parametros_de(resumen: dict) -> Parametros:
         excluir=[tuple(x) for x in pr.get("excluir", [])],
         ancho_minimo=pr.get("ancho_minimo", 0),
         umbral_ojos=pr.get("umbral_ojos"),
+        zona_ojos=pr.get("zona_ojos", 0.0),
+        ojos_arriba=pr.get("ojos_arriba", 0.35),
+        ojos_seguidos=pr.get("ojos_seguidos", 1),
     )
 
 
