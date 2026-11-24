@@ -43,13 +43,14 @@ jobs:
           - { os: windows-latest, nombre: windows-powershell-7 }
     env:
       MIRAME_SIN_ABRIR: "1"
+      COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v4
       - name: Instalar con instalar.sh desde este commit
         if: runner.os != 'Windows'
         run: MIRAME_FUENTE="file://$GITHUB_WORKSPACE" sh instalar.sh
       # Como en una computadora cualquiera: sin uv, con la política de ejecución
-      # restringida y pegando «irm … | iex» (el texto se ejecuta tal como lo baja irm).
+      # restringida y pegando «irm … | iex» (el script se baja con irm desde GitHub, como lo haría una persona).
       - name: Instalar con «irm | iex» en Windows PowerShell 5
         if: matrix.nombre == 'windows-powershell-5'
         shell: powershell
@@ -58,7 +59,7 @@ jobs:
           if (Get-Command uv -ErrorAction SilentlyContinue) { throw 'uv sigue en el PATH' }
           Set-ExecutionPolicy Restricted -Scope Process -Force
           $env:MIRAME_FUENTE = 'file:///' + ($env:GITHUB_WORKSPACE -replace '\\', '/')
-          $texto = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes("$env:GITHUB_WORKSPACE\instalar.ps1"))
+          $texto = irm "https://raw.githubusercontent.com/jacomv/mirame/$env:COMMIT/instalar.ps1"
           if (-not $texto.Contains('M' + [char]0x00ED + 'rame')) { throw 'Los acentos no se leen bien' }
           $texto | Invoke-Expression
           if (-not (Test-Path "$env:USERPROFILE\.local\bin\mirame.exe")) { throw 'Mirame no quedo instalado' }
@@ -70,7 +71,7 @@ jobs:
           if (Get-Command uv -ErrorAction SilentlyContinue) { throw 'uv sigue en el PATH' }
           Set-ExecutionPolicy Restricted -Scope Process -Force
           $env:MIRAME_FUENTE = 'file:///' + ($env:GITHUB_WORKSPACE -replace '\\', '/')
-          $texto = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes("$env:GITHUB_WORKSPACE\instalar.ps1"))
+          $texto = irm "https://raw.githubusercontent.com/jacomv/mirame/$env:COMMIT/instalar.ps1"
           if (-not $texto.Contains('M' + [char]0x00ED + 'rame')) { throw 'Los acentos no se leen bien' }
           $texto | Invoke-Expression
           if (-not (Test-Path "$env:USERPROFILE\.local\bin\mirame.exe")) { throw 'Mirame no quedo instalado' }

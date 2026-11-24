@@ -1,4 +1,4 @@
-﻿# Instala o actualiza Mírame en Windows con un solo comando, en PowerShell (5 o 7):
+# Instala o actualiza Mírame en Windows con un solo comando, en PowerShell (5 o 7):
 #
 #   irm https://raw.githubusercontent.com/jacomv/mirame/main/instalar.ps1 | iex
 #
@@ -11,7 +11,8 @@
 # No pide permisos de administrador.
 #
 # Variables para pruebas: MIRAME_FUENTE (de dónde instalar), MIRAME_SIN_ABRIR (no abrir la app).
-# Este archivo va en UTF-8 con BOM para que Windows PowerShell lea bien los acentos.
+# Va en UTF-8 SIN BOM: irm lo decodifica por la cabecera de GitHub (charset=utf-8), y un BOM
+# delante del primer comentario rompe «irm | iex».
 $ErrorActionPreference = 'Stop'
 
 $Fuente = if ($env:MIRAME_FUENTE) { $env:MIRAME_FUENTE } else { 'https://github.com/jacomv/mirame/archive/refs/heads/main.zip' }
