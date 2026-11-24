@@ -1,6 +1,6 @@
 [project]
 name = "mirame"
-version = "0.5.0"
+version = "0.5.1"
 description = "Mide hacia dónde mira el predicador en un sermón: a la congregación o a sus notas."
 readme = "README.md"
 license = "MIT"

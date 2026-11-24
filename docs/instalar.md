@@ -120,7 +120,7 @@ Paso 4 de 4 · Crear el acceso directo
 Para abrir Mírame con doble clic.
 Acceso directo creado: /Users/tu-usuario/Desktop/Mírame.command
 
-Mírame 0.5.0 quedó instalada.
+Mírame 0.5.1 quedó instalada.
 
   · Para abrirla: doble clic en «Mírame» en el escritorio.
   · Mientras la usas, queda abierta una ventana como esta. Para cerrar Mírame, ciérrala.
