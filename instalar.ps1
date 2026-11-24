@@ -1,4 +1,4 @@
-# Instala o actualiza Mírame en Windows con un solo comando (en PowerShell):
+﻿# Instala o actualiza Mírame en Windows con un solo comando (en PowerShell):
 #
 #   powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/jacomv/mirame/main/instalar.ps1 | iex"
 #
