@@ -193,6 +193,13 @@ def cmd_instalar_capturas(a):
     sys.exit(subprocess.call([sys.executable, "-m", "playwright", "install", "chromium"]))
 
 
+def cmd_acceso(a):
+    """Acceso directo en el escritorio para abrir la app con doble clic."""
+    from .herramientas import crear_acceso
+
+    print(f"Acceso directo creado: {crear_acceso()}")
+
+
 # ---------------------------------------------------------------- ver
 def cmd_ver(a):
     """Abre un reporte dentro de la app (con el botón Capturar activo)."""
@@ -320,6 +327,9 @@ def construir() -> argparse.ArgumentParser:
 
     p = sub.add_parser("instalar-capturas", help="descargar el navegador que usan las capturas (una vez)")
     p.set_defaults(fn=cmd_instalar_capturas)
+
+    p = sub.add_parser("acceso", help="crear un acceso directo en el escritorio para abrir la app")
+    p.set_defaults(fn=cmd_acceso)
 
     p = sub.add_parser("muestras", help="fotogramas al azar de cada clase, para revisar a ojo")
     p.add_argument("carpeta")

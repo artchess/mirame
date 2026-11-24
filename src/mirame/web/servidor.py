@@ -30,8 +30,8 @@ import contextlib
 import json
 import mimetypes
 import re
-import shutil
 import threading
+import urllib.request
 import webbrowser
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -127,7 +127,6 @@ class App:
             "datos": str(rutas.datos()),
             "ajustes": config.cargar().publica(),
             "capturas": capturar.disponible(),
-            "ffmpeg": bool(shutil.which("ffmpeg") and shutil.which("ffprobe")),
             "descargas": biblioteca.cache_descargas(),
         }
 
@@ -398,16 +397,29 @@ def _escuchar(puerto: int, manejador_de) -> ThreadingHTTPServer:
     raise SystemExit(f"No encontré un puerto libre entre {puerto} y {puerto + 19}.")
 
 
+def _ya_abierta(puerto: int) -> bool:
+    """¿Hay una Mírame corriendo en ese puerto? (doble clic al acceso directo con la app abierta)."""
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{puerto}/api/estado", timeout=1) as r:
+            return "version" in json.load(r)
+    except Exception:
+        return False
+
+
 def iniciar(puerto: int = 8710, abrir: bool = True, ruta: str = "/") -> None:
     """Arranca la app y abre el navegador. Ctrl+C para cerrarla."""
+    if _ya_abierta(puerto):
+        url = f"http://127.0.0.1:{puerto}{ruta}"
+        print(f"Mírame ya está abierta en {url}")
+        if abrir:
+            webbrowser.open(url)
+        return
     app = App()
     servidor = _escuchar(puerto, lambda p: crear_manejador(app, p))
     url = f"http://127.0.0.1:{servidor.server_address[1]}{ruta}"
     print(f"Mírame {__version__} en {url}")
     print(f"Datos en {rutas.datos()}")
-    print("Ctrl+C para cerrar.", flush=True)
-    if not shutil.which("ffmpeg"):
-        print("⚠ No encuentro ffmpeg: instálalo antes de analizar (ver README).", flush=True)
+    print("Para cerrarla, cierra esta ventana o pulsa Ctrl+C.", flush=True)
     if abrir:
         webbrowser.open(url)
     try:

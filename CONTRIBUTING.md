@@ -90,6 +90,7 @@ src/mirame/
 ├── capturar.py     capturas PNG con Playwright
 ├── muestras.py     fotogramas de muestra para revisar a ojo
 ├── biblioteca.py   listar y borrar análisis guardados
+├── herramientas.py  ffmpeg incluido, lectura del video sin ffprobe y acceso directo
 ├── config.py       claves de IA (archivo y variables de entorno)
 ├── rutas.py        carpeta de datos (~/Mirame)
 ├── progreso.py     avance por etapas y cancelación de tareas largas
@@ -101,6 +102,7 @@ src/mirame/
 
 Decisiones que conviene respetar:
 
+- **Instalar es un comando.** Nada que el usuario tenga que instalar aparte: ffmpeg y Deno llegan como paquetes de Python. Si agregas una dependencia, que se instale con `uv` en macOS, Windows y Linux.
 - **Sin dependencias para la web.** El servidor usa `http.server` y la página es HTML, CSS y JS sin compilación. Así la instalación sigue siendo un solo comando.
 - **El reporte es un solo archivo.** `reporte.py` incrusta CSS, JS, Chart.js y los datos, para que se abra sin conexión y se pueda enviar tal cual.
 - **Todo se recalcula desde `fotogramas.csv`.** Lo caro (la pose) se guarda; la clasificación se puede repetir con otras reglas.
