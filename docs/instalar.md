@@ -57,7 +57,7 @@ Se abre una ventana azul o negra con un cursor. No hace falta abrirla «como adm
 ### 2. Copia el comando
 
 ```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/jacomv/mirame/main/instalar.ps1 | iex"
+irm https://raw.githubusercontent.com/jacomv/mirame/main/instalar.ps1 | iex
 ```
 
 En GitHub, al pasar el mouse sobre el recuadro aparece a la derecha un botón para copiar. También puedes seleccionarlo y pulsar <kbd>Ctrl</kbd> + <kbd>C</kbd>.
@@ -66,7 +66,13 @@ En GitHub, al pasar el mouse sobre el recuadro aparece a la derecha un botón pa
 
 Haz clic dentro de la ventana y pulsa <kbd>Ctrl</kbd> + <kbd>V</kbd> (o clic derecho), y luego <kbd>Enter</kbd>.
 
-> `-ExecutionPolicy ByPass` permite ejecutar este instalador sin cambiar la configuración de seguridad de tu Windows. Afecta solo a esta instalación.
+No hace falta cambiar la configuración de seguridad de Windows. Sirve cualquier PowerShell: el que trae Windows o PowerShell 7.
+
+> Si en vez de PowerShell abriste el **Símbolo del sistema** (cmd), pega esta otra línea:
+>
+> ```bat
+> powershell -c "irm https://raw.githubusercontent.com/jacomv/mirame/main/instalar.ps1 | iex"
+> ```
 
 ### 4. Espera
 
@@ -114,7 +120,7 @@ Paso 4 de 4 · Crear el acceso directo
 Para abrir Mírame con doble clic.
 Acceso directo creado: /Users/tu-usuario/Desktop/Mírame.command
 
-Mírame 0.5.0 quedó instalada.
+Mírame 0.5.1 quedó instalada.
 
   · Para abrirla: doble clic en «Mírame» en el escritorio.
   · Mientras la usas, queda abierta una ventana como esta. Para cerrar Mírame, ciérrala.
@@ -149,7 +155,9 @@ Cierra Mírame y vuelve a pegar **el mismo comando de instalación**. Instala la
 
 **`mirame` no se reconoce como comando.** La terminal que tenías abierta no conoce todavía el programa nuevo. Ciérrala y abre otra, o usa el acceso directo del escritorio.
 
-**En Windows: «irm no se reconoce» o un error en rojo al pegar.** Revisa que pegaste la línea completa, empezando por `powershell`. Funciona tanto en PowerShell como en el Símbolo del sistema (cmd).
+**En Windows: «irm no se reconoce como comando».** Abriste el Símbolo del sistema (cmd), no PowerShell. Usa la línea para cmd que aparece en el paso 3, o abre PowerShell.
+
+**En Windows: «No se pudo ejecutar el programa "powershell.exe"… UseShellExecute».** Pegaste el comando de una versión anterior de esta guía, que fallaba en PowerShell 7. Usa el comando actual, que empieza por `irm`.
 
 **En Mac: el acceso directo abre la Terminal y se cierra enseguida.** Abre la Terminal, escribe `mirame` y pulsa Enter para ver el mensaje de error.
 

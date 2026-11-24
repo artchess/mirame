@@ -53,10 +53,10 @@ curl -LsSf https://raw.githubusercontent.com/jacomv/mirame/main/instalar.sh | sh
 
 ### Windows
 
-Abre **PowerShell** (búscalo en el menú Inicio) y pega:
+Abre **PowerShell** (búscalo en el menú Inicio; sirve la versión 5 o la 7) y pega:
 
 ```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/jacomv/mirame/main/instalar.ps1 | iex"
+irm https://raw.githubusercontent.com/jacomv/mirame/main/instalar.ps1 | iex
 ```
 
 La primera vez tarda unos minutos y ocupa cerca de 1 GB. Al terminar abre la app y deja en el escritorio un acceso directo **Mírame** para abrirla con doble clic. Mientras la usas queda abierta una ventana de terminal con la app funcionando; para cerrar Mírame, cierra esa ventana.

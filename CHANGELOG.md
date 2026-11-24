@@ -4,6 +4,12 @@ Todos los cambios relevantes de Mírame. El formato sigue [Keep a Changelog](htt
 
 ## [Sin publicar]
 
+## [0.5.1] — 2026-11-24
+
+### Arreglado
+
+- **Windows:** el instalador fallaba en PowerShell 7 (el de la Microsoft Store) con «No se pudo ejecutar el programa powershell.exe… UseShellExecute», y en equipos con la política de ejecución restringida. El comando pasa a ser `irm …/instalar.ps1 | iex`, y uv se descarga directamente sin su instalador ni otro PowerShell.
+
 ## [0.5.0] — 2026-11-24
 
 Instalar Mírame pasa de cinco pasos técnicos a un comando. El método de medición no cambia (sigue en el 3): los análisis anteriores no necesitan recalcularse.
@@ -80,7 +86,8 @@ Instalar Mírame pasa de cinco pasos técnicos a un comando. El método de medic
 
 - Primera versión: análisis por línea de comandos, reporte HTML y capturas.
 
-[Sin publicar]: https://github.com/jacomv/mirame/compare/v0.5.0...HEAD
+[Sin publicar]: https://github.com/jacomv/mirame/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/jacomv/mirame/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/jacomv/mirame/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/jacomv/mirame/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/jacomv/mirame/releases/tag/v0.3.0

@@ -31,32 +31,50 @@ jobs:
         run: uv build
 
   instalador:
-    name: Instalador (${{ matrix.os }})
+    name: Instalador (${{ matrix.nombre }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - { os: ubuntu-latest, nombre: linux }
+          - { os: macos-latest, nombre: macos }
+          - { os: windows-latest, nombre: windows-powershell-5 }
+          - { os: windows-latest, nombre: windows-powershell-7 }
     env:
       MIRAME_SIN_ABRIR: "1"
+      COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v4
       - name: Instalar con instalar.sh desde este commit
         if: runner.os != 'Windows'
         run: MIRAME_FUENTE="file://$GITHUB_WORKSPACE" sh instalar.sh
-      - name: instalar.ps1 se puede leer con «irm | iex» (UTF-8 con BOM)
-        if: runner.os == 'Windows'
+      # Como en una computadora cualquiera: sin uv, con la política de ejecución
+      # restringida y pegando «irm … | iex» (el script se baja con irm desde GitHub, como lo haría una persona).
+      - name: Instalar con «irm | iex» en Windows PowerShell 5
+        if: matrix.nombre == 'windows-powershell-5'
         shell: powershell
         run: |
-          $texto = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes("$PWD\instalar.ps1"))
-          [ScriptBlock]::Create($texto) | Out-Null
-          if (-not $texto.Contains('M' + [char]0x00ED + 'rame')) { throw 'Los acentos no se leen bien' }
-      - name: Instalar con instalar.ps1 desde este commit
-        if: runner.os == 'Windows'
-        shell: powershell
-        run: |
+          $env:Path = ($env:Path -split ';' | Where-Object { $_ -and -not (Test-Path (Join-Path $_ 'uv.exe')) }) -join ';'
+          if (Get-Command uv -ErrorAction SilentlyContinue) { throw 'uv sigue en el PATH' }
+          Set-ExecutionPolicy Restricted -Scope Process -Force
           $env:MIRAME_FUENTE = 'file:///' + ($env:GITHUB_WORKSPACE -replace '\\', '/')
-          .\instalar.ps1
+          $texto = irm "https://raw.githubusercontent.com/jacomv/mirame/$env:COMMIT/instalar.ps1"
+          if (-not $texto.Contains('M' + [char]0x00ED + 'rame')) { throw 'Los acentos no se leen bien' }
+          $texto | Invoke-Expression
+          if (-not (Test-Path "$env:USERPROFILE\.local\bin\mirame.exe")) { throw 'Mirame no quedo instalado' }
+      - name: Instalar con «irm | iex» en PowerShell 7
+        if: matrix.nombre == 'windows-powershell-7'
+        shell: pwsh
+        run: |
+          $env:Path = ($env:Path -split ';' | Where-Object { $_ -and -not (Test-Path (Join-Path $_ 'uv.exe')) }) -join ';'
+          if (Get-Command uv -ErrorAction SilentlyContinue) { throw 'uv sigue en el PATH' }
+          Set-ExecutionPolicy Restricted -Scope Process -Force
+          $env:MIRAME_FUENTE = 'file:///' + ($env:GITHUB_WORKSPACE -replace '\\', '/')
+          $texto = irm "https://raw.githubusercontent.com/jacomv/mirame/$env:COMMIT/instalar.ps1"
+          if (-not $texto.Contains('M' + [char]0x00ED + 'rame')) { throw 'Los acentos no se leen bien' }
+          $texto | Invoke-Expression
+          if (-not (Test-Path "$env:USERPROFILE\.local\bin\mirame.exe")) { throw 'Mirame no quedo instalado' }
       - name: mirame responde
         shell: bash
         run: |
