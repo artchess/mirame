@@ -4,12 +4,22 @@ Todos los cambios relevantes de Mírame. El formato sigue [Keep a Changelog](htt
 
 ## [Sin publicar]
 
+## [0.5.0] — 2026-11-24
+
+Instalar Mírame pasa de cinco pasos técnicos a un comando. El método de medición no cambia (sigue en el 3): los análisis anteriores no necesitan recalcularse.
+
 ### Agregado
 
+- **Guía de instalación paso a paso** ([docs/instalar.md](docs/instalar.md)) para quien nunca ha usado una terminal: cómo abrirla, qué se ve mientras se instala, cómo usar y actualizar la app, y qué hacer si algo falla.
 - **Instalación con un solo comando** en macOS, Linux y Windows (`instalar.sh`, `instalar.ps1`). Instala uv y Python si faltan, Mírame y el navegador de las capturas, crea el acceso directo y abre la app. Volver a ejecutarlo actualiza. No pide permisos de administrador ni necesita git.
 - **ffmpeg y Deno incluidos** como dependencias (`imageio-ffmpeg`, `yt-dlp[default,deno]`): ya no hay que instalar Homebrew, ffmpeg ni Deno. Si la computadora tiene su propio ffmpeg, se usa ese.
 - `mirame acceso`: acceso directo en el escritorio (en Linux, en el menú de aplicaciones).
 - Abrir Mírame cuando ya está abierta lleva a la app existente en vez de arrancar otra.
+
+### Cambiado
+
+- El instalador explica cada paso y, si falla, dice qué hacer.
+- `mirame instalar-capturas` descarga solo el navegador sin interfaz (unos 200 MB en vez de casi 600 MB).
 
 ### Arreglado
 
@@ -70,6 +80,7 @@ Todos los cambios relevantes de Mírame. El formato sigue [Keep a Changelog](htt
 
 - Primera versión: análisis por línea de comandos, reporte HTML y capturas.
 
-[Sin publicar]: https://github.com/jacomv/mirame/compare/v0.4.0...HEAD
+[Sin publicar]: https://github.com/jacomv/mirame/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/jacomv/mirame/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/jacomv/mirame/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/jacomv/mirame/releases/tag/v0.3.0

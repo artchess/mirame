@@ -41,6 +41,8 @@ El detalle del método, sus límites y cómo validarlo están en [docs/como-func
 
 Un solo comando. Copia el de tu sistema, pégalo y pulsa Enter. No pide contraseña de administrador.
 
+> **¿Nunca has usado una terminal?** La [guía de instalación paso a paso](docs/instalar.md) explica cómo abrirla, qué verás mientras se instala y qué hacer si algo falla.
+
 ### macOS y Linux
 
 Abre la app **Terminal** y pega:
@@ -57,7 +59,7 @@ Abre **PowerShell** (búscalo en el menú Inicio) y pega:
 powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/jacomv/mirame/main/instalar.ps1 | iex"
 ```
 
-La primera vez tarda unos minutos: descarga Python, Mírame y el navegador de las capturas (en total cerca de 400 MB). Al terminar abre la app y deja en el escritorio un acceso directo **Mírame** para abrirla con doble clic. Mientras la usas queda abierta una ventana negra con la app corriendo; para cerrar Mírame, cierra esa ventana.
+La primera vez tarda unos minutos y ocupa cerca de 1 GB. Al terminar abre la app y deja en el escritorio un acceso directo **Mírame** para abrirla con doble clic. Mientras la usas queda abierta una ventana de terminal con la app funcionando; para cerrar Mírame, cierra esa ventana.
 
 El instalador ([instalar.sh](instalar.sh), [instalar.ps1](instalar.ps1)) se puede leer antes de ejecutarlo. Instala [uv](https://docs.astral.sh/uv/), que trae su propio Python, y con él Mírame. ffmpeg (para leer el video) y Deno (que necesita YouTube) vienen incluidos: no hay que instalar nada más.
 
@@ -66,7 +68,7 @@ El instalador ([instalar.sh](instalar.sh), [instalar.ps1](instalar.ps1)) se pued
 
 ```bash
 uv tool install "mirame[capturas] @ https://github.com/jacomv/mirame/archive/refs/heads/main.zip"
-mirame instalar-capturas     # navegador para el botón Capturar (unos 150 MB); opcional
+mirame instalar-capturas     # navegador para el botón Capturar (unos 200 MB); opcional
 mirame acceso                # acceso directo en el escritorio; opcional
 ```
 
