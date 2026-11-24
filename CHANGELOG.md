@@ -4,6 +4,10 @@ Todos los cambios relevantes de Mírame. El formato sigue [Keep a Changelog](htt
 
 ## [Sin publicar]
 
+### Arreglado
+
+- **Windows:** el instalador fallaba en PowerShell 7 (el de la Microsoft Store) con «No se pudo ejecutar el programa powershell.exe… UseShellExecute», y en equipos con la política de ejecución restringida. El comando pasa a ser `irm …/instalar.ps1 | iex`, y uv se descarga directamente sin su instalador ni otro PowerShell.
+
 ## [0.5.0] — 2026-11-24
 
 Instalar Mírame pasa de cinco pasos técnicos a un comando. El método de medición no cambia (sigue en el 3): los análisis anteriores no necesitan recalcularse.

@@ -1,6 +1,9 @@
-﻿# Instala o actualiza Mírame en Windows con un solo comando (en PowerShell o en cmd):
+﻿# Instala o actualiza Mírame en Windows con un solo comando, en PowerShell (5 o 7):
 #
-#   powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/jacomv/mirame/main/instalar.ps1 | iex"
+#   irm https://raw.githubusercontent.com/jacomv/mirame/main/instalar.ps1 | iex
+#
+# Desde cmd: powershell -c "irm https://raw.githubusercontent.com/jacomv/mirame/main/instalar.ps1 | iex"
+# No hace falta cambiar la política de ejecución: el script corre como texto, no como archivo.
 #
 # Qué hace: instala uv (si falta), que a su vez trae Python; instala Mírame con su
 # ffmpeg y todo lo demás; descarga el navegador de las capturas; deja un acceso directo
@@ -13,6 +16,32 @@ $ErrorActionPreference = 'Stop'
 
 $Fuente = if ($env:MIRAME_FUENTE) { $env:MIRAME_FUENTE } else { 'https://github.com/jacomv/mirame/archive/refs/heads/main.zip' }
 $Ayuda = 'https://github.com/jacomv/mirame/blob/main/docs/instalar.md#si-algo-sale-mal'
+
+# Descarga uv.exe directamente de su página de versiones. No usa el instalador de uv
+# porque ese exige cambiar la política de ejecución, ni abre otro PowerShell (falla
+# desde PowerShell 7 de la Microsoft Store).
+function Instalar-Uv($destino) {
+    $arquitectura = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'aarch64' } else { 'x86_64' }
+    $url = "https://github.com/astral-sh/uv/releases/latest/download/uv-$arquitectura-pc-windows-msvc.zip"
+    $zip = Join-Path ([IO.Path]::GetTempPath()) "uv-$([guid]::NewGuid()).zip"
+    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+    $ProgressPreference = 'SilentlyContinue'
+    Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
+    New-Item -ItemType Directory -Force -Path $destino | Out-Null
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $archivo = [IO.Compression.ZipFile]::OpenRead($zip)
+    try {
+        foreach ($e in $archivo.Entries) {
+            if ($e.Name -like '*.exe') {
+                [IO.Compression.ZipFileExtensions]::ExtractToFile($e, (Join-Path $destino $e.Name), $true)
+            }
+        }
+    } finally {
+        $archivo.Dispose()
+        Remove-Item $zip -ErrorAction SilentlyContinue
+    }
+    if (-not (Test-Path (Join-Path $destino 'uv.exe'))) { throw 'No se pudo instalar uv.' }
+}
 
 function Paso($n, $titulo, $detalle) {
     Write-Host ''
@@ -35,8 +64,7 @@ try {
         if (Test-Path $uv) {
             Write-Host 'Ya lo tienes.'
         } else {
-            powershell -ExecutionPolicy ByPass -c 'irm https://astral.sh/uv/install.ps1 | iex' | Out-Null
-            if (-not (Test-Path $uv)) { throw 'No se pudo instalar uv.' }
+            Instalar-Uv (Split-Path $uv)
             Write-Host 'Listo.'
         }
     }

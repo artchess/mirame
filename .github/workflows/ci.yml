@@ -31,12 +31,16 @@ jobs:
         run: uv build
 
   instalador:
-    name: Instalador (${{ matrix.os }})
+    name: Instalador (${{ matrix.nombre }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - { os: ubuntu-latest, nombre: linux }
+          - { os: macos-latest, nombre: macos }
+          - { os: windows-latest, nombre: windows-powershell-5, shell: powershell }
+          - { os: windows-latest, nombre: windows-powershell-7, shell: pwsh }
     env:
       MIRAME_SIN_ABRIR: "1"
     steps:
@@ -44,19 +48,20 @@ jobs:
       - name: Instalar con instalar.sh desde este commit
         if: runner.os != 'Windows'
         run: MIRAME_FUENTE="file://$GITHUB_WORKSPACE" sh instalar.sh
-      - name: instalar.ps1 se puede leer con «irm | iex» (UTF-8 con BOM)
+      # Como en una computadora cualquiera: sin uv, con la política de ejecución
+      # restringida y pegando «irm … | iex» (el texto se ejecuta tal como lo baja irm).
+      - name: Instalar con «irm | iex» desde este commit
         if: runner.os == 'Windows'
-        shell: powershell
+        shell: ${{ matrix.shell }} -NoProfile -Command "& '{0}'"
         run: |
-          $texto = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes("$PWD\instalar.ps1"))
-          [ScriptBlock]::Create($texto) | Out-Null
-          if (-not $texto.Contains('M' + [char]0x00ED + 'rame')) { throw 'Los acentos no se leen bien' }
-      - name: Instalar con instalar.ps1 desde este commit
-        if: runner.os == 'Windows'
-        shell: powershell
-        run: |
+          $env:Path = ($env:Path -split ';' | Where-Object { $_ -and -not (Test-Path (Join-Path $_ 'uv.exe')) }) -join ';'
+          if (Get-Command uv -ErrorAction SilentlyContinue) { throw 'uv sigue en el PATH' }
+          Set-ExecutionPolicy Restricted -Scope Process -Force
           $env:MIRAME_FUENTE = 'file:///' + ($env:GITHUB_WORKSPACE -replace '\\', '/')
-          .\instalar.ps1
+          $texto = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes("$env:GITHUB_WORKSPACE\instalar.ps1"))
+          if (-not $texto.Contains('M' + [char]0x00ED + 'rame')) { throw 'Los acentos no se leen bien' }
+          $texto | Invoke-Expression
+          if (-not (Test-Path "$env:USERPROFILE\.local\bin\mirame.exe")) { throw 'Mirame no quedo instalado' }
       - name: mirame responde
         shell: bash
         run: |
