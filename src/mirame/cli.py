@@ -190,7 +190,7 @@ def cmd_instalar_capturas(a):
 
     if not capturar.disponible():
         sys.exit(capturar.INSTALAR)
-    sys.exit(subprocess.call([sys.executable, "-m", "playwright", "install", "chromium"]))
+    sys.exit(subprocess.call([sys.executable, "-m", "playwright", "install", "chromium", "--only-shell"]))
 
 
 def cmd_acceso(a):
