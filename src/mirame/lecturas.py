@@ -20,6 +20,7 @@ import uuid
 from pathlib import Path
 
 from . import config
+from .herramientas import ffmpeg
 from .progreso import Progreso
 from .video import duracion, formato_tiempo
 
@@ -132,7 +133,7 @@ def transcribir(carpeta: Path, progreso: Progreso | None = None) -> Path:
         inicio = 0.0
         while inicio < total:
             mp3 = Path(tmp) / f"a{int(inicio)}.mp3"
-            subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", str(inicio), "-t", str(TRAMO_AUDIO),
+            subprocess.run([ffmpeg(), "-v", "error", "-y", "-ss", str(inicio), "-t", str(TRAMO_AUDIO),
                             "-i", str(video), "-vn", "-ac", "1", "-ar", "16000", "-b:a", "32k", str(mp3)],
                            check=True)
             progreso.aviso(f"Transcribiendo {formato_tiempo(inicio)}–"

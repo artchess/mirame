@@ -155,7 +155,6 @@ async function verNuevo() {
     $("#op-lecturas").classList.add("apagado");
     $("#lecturas-nota").innerHTML = `Necesita una clave de transcripción (Whisper). <a href="#/ajustes">Agrégala en Ajustes</a>. Sin ella el análisis funciona igual, solo que la lectura bíblica cuenta como mirar abajo.`;
   }
-  if (ESTADO && !ESTADO.ffmpeg) mostrarError("error-info", "No encuentro ffmpeg en tu computadora. Instálalo antes de analizar (ver README).");
 
   let archivo = null, info = null, ultimaConsulta = "";
 

@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -29,3 +29,37 @@ jobs:
         run: uv run pytest -q
       - name: El paquete se construye
         run: uv build
+
+  instalador:
+    name: Instalador (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    env:
+      MIRAME_SIN_ABRIR: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instalar con instalar.sh desde este commit
+        if: runner.os != 'Windows'
+        run: MIRAME_FUENTE="file://$GITHUB_WORKSPACE" sh instalar.sh
+      - name: instalar.ps1 se puede leer con «irm | iex» (UTF-8 con BOM)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $texto = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes("$PWD\instalar.ps1"))
+          [ScriptBlock]::Create($texto) | Out-Null
+          if (-not $texto.Contains('M' + [char]0x00ED + 'rame')) { throw 'Los acentos no se leen bien' }
+      - name: Instalar con instalar.ps1 desde este commit
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $env:MIRAME_FUENTE = 'file:///' + ($env:GITHUB_WORKSPACE -replace '\\', '/')
+          .\instalar.ps1
+      - name: mirame responde
+        shell: bash
+        run: |
+          BIN="$HOME/.local/bin"
+          "$BIN/mirame" --version
+          "$BIN/mirame" lista

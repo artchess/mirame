@@ -39,56 +39,44 @@ El detalle del método, sus límites y cómo validarlo están en [docs/como-func
 
 ## Instalación
 
-Necesitas dos programas: **uv**, que instala Mírame y su versión de Python, y **ffmpeg**, que lee y recorta el video. Se instalan una sola vez.
+Un solo comando. Copia el de tu sistema, pégalo y pulsa Enter. No pide contraseña de administrador.
 
-### macOS
+### macOS y Linux
 
-Abre la app **Terminal** y pega, una por una:
+Abre la app **Terminal** y pega:
 
 ```bash
-# 1. Homebrew (si no lo tienes): https://brew.sh
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-# 2. ffmpeg y uv
-brew install ffmpeg uv
-
-# 3. Mírame
-uv tool install "mirame[capturas] @ git+https://github.com/jacomv/mirame"
-mirame instalar-capturas
+curl -LsSf https://raw.githubusercontent.com/jacomv/mirame/main/instalar.sh | sh
 ```
 
 ### Windows
 
-Abre **PowerShell** y pega, una por una:
+Abre **PowerShell** (búscalo en el menú Inicio) y pega:
 
 ```powershell
-winget install --id Gyan.FFmpeg
-winget install --id astral-sh.uv
-# Cierra y vuelve a abrir PowerShell para que reconozca los comandos nuevos.
-uv tool install "mirame[capturas] @ git+https://github.com/jacomv/mirame"
-mirame instalar-capturas
+powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/jacomv/mirame/main/instalar.ps1 | iex"
 ```
 
-### Linux (Debian, Ubuntu)
+La primera vez tarda unos minutos: descarga Python, Mírame y el navegador de las capturas (en total cerca de 400 MB). Al terminar abre la app y deja en el escritorio un acceso directo **Mírame** para abrirla con doble clic. Mientras la usas queda abierta una ventana negra con la app corriendo; para cerrar Mírame, cierra esa ventana.
+
+El instalador ([instalar.sh](instalar.sh), [instalar.ps1](instalar.ps1)) se puede leer antes de ejecutarlo. Instala [uv](https://docs.astral.sh/uv/), que trae su propio Python, y con él Mírame. ffmpeg (para leer el video) y Deno (que necesita YouTube) vienen incluidos: no hay que instalar nada más.
+
+<details>
+<summary>Instalación manual (si ya usas uv)</summary>
 
 ```bash
-sudo apt install ffmpeg
-curl -LsSf https://astral.sh/uv/install.sh | sh
-uv tool install "mirame[capturas] @ git+https://github.com/jacomv/mirame"
-mirame instalar-capturas
+uv tool install "mirame[capturas] @ https://github.com/jacomv/mirame/archive/refs/heads/main.zip"
+mirame instalar-capturas     # navegador para el botón Capturar (unos 150 MB); opcional
+mirame acceso                # acceso directo en el escritorio; opcional
 ```
 
-`mirame instalar-capturas` descarga el navegador que usa el botón **Capturar** (unos 150 MB). Si no te interesan las capturas, instala sin `[capturas]` y omite ese paso: lo demás funciona igual.
+Sin `[capturas]` y sin `mirame instalar-capturas` todo funciona igual, salvo el botón **Capturar**. La primera vez que analices un sermón, Mírame descarga el modelo de MediaPipe (3,6 MB).
 
-La primera vez que analices un sermón, Mírame descarga el modelo de MediaPipe (3,6 MB).
+</details>
 
 ### Actualizar
 
-Para pasar a la última versión, cierra la app (`Ctrl+C` en la terminal donde corre) y ejecuta:
-
-```bash
-uv tool upgrade mirame
-```
+Cierra Mírame y vuelve a ejecutar **el mismo comando de instalación**. Instala la última versión encima de la anterior.
 
 Comprueba la versión instalada con `mirame --version`; también aparece en el pie de la app. Las versiones publicadas y sus cambios están en [Releases](https://github.com/jacomv/mirame/releases) y en el [CHANGELOG](CHANGELOG.md).
 
@@ -102,7 +90,7 @@ mirame recalcular <análisis>       # aplicar el método nuevo a uno
 Para instalar una versión concreta, por ejemplo para repetir un análisis con el método de entonces:
 
 ```bash
-uv tool install --force "mirame[capturas] @ git+https://github.com/jacomv/mirame@v0.4.0"
+uv tool install --force "mirame[capturas] @ https://github.com/jacomv/mirame/archive/refs/tags/v0.4.0.zip"
 ```
 
 Si trabajas desde el código fuente:
@@ -117,6 +105,8 @@ uv sync --extra capturas --group dev
 ```bash
 uv tool uninstall mirame      # tus análisis quedan en ~/Mirame; bórrala a mano si ya no la quieres
 ```
+
+Borra también el acceso directo **Mírame** del escritorio.
 
 ---
 
@@ -229,13 +219,13 @@ Si la IA marcó mal una lectura, puedes corregir `lecturas.json` a mano y aplica
 
 ## Problemas comunes
 
-**«No encuentro ffmpeg».** Instálalo (ver Instalación) y vuelve a abrir la terminal.
-
-**YouTube no deja descargar** («Sign in to confirm you're not a bot» o un error 403). YouTube cambia seguido. Actualiza con `uv tool upgrade mirame`. Si sigue fallando, instala [Deno](https://deno.com), que yt-dlp usa para algunos videos, o descarga el video por tu cuenta y elígelo como archivo en la app.
+**YouTube no deja descargar** («Sign in to confirm you're not a bot» o un error 403). YouTube cambia seguido. Actualiza Mírame (vuelve a ejecutar el comando de instalación), que trae la versión más reciente de yt-dlp. Si sigue fallando, descarga el video por tu cuenta y elígelo como archivo en la app.
 
 **«Sin dato» en buena parte del sermón.** La cámara no muestra la cara del predicador (planos lejanos, la congregación, diapositivas). Esos segundos no cuentan en los porcentajes. Si pasan del 30 %, el reporte avisa que el resultado es poco confiable.
 
-**Las capturas no funcionan.** Corre `mirame instalar-capturas`. Si instalaste sin `[capturas]`, reinstala con el comando de la sección de instalación.
+**Las capturas no funcionan.** Corre `mirame instalar-capturas`. Si instalaste a mano sin `[capturas]`, usa el comando de instalación.
+
+**`mirame` no se reconoce como comando.** Cierra la terminal y abre una nueva, o usa el acceso directo del escritorio.
 
 **El puerto 8710 está ocupado.** Mírame prueba solo los siguientes, o usa `mirame app --puerto 9000`.
 

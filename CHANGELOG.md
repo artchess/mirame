@@ -4,6 +4,18 @@ Todos los cambios relevantes de Mírame. El formato sigue [Keep a Changelog](htt
 
 ## [Sin publicar]
 
+### Agregado
+
+- **Instalación con un solo comando** en macOS, Linux y Windows (`instalar.sh`, `instalar.ps1`). Instala uv y Python si faltan, Mírame y el navegador de las capturas, crea el acceso directo y abre la app. Volver a ejecutarlo actualiza. No pide permisos de administrador ni necesita git.
+- **ffmpeg y Deno incluidos** como dependencias (`imageio-ffmpeg`, `yt-dlp[default,deno]`): ya no hay que instalar Homebrew, ffmpeg ni Deno. Si la computadora tiene su propio ffmpeg, se usa ese.
+- `mirame acceso`: acceso directo en el escritorio (en Linux, en el menú de aplicaciones).
+- Abrir Mírame cuando ya está abierta lleva a la app existente en vez de arrancar otra.
+
+### Arreglado
+
+- Los videos grabados en vertical con el celular (con rotación en los metadatos) leían el tamaño al revés.
+- Sin Deno, YouTube podía negar la descarga de algunos videos.
+
 ### Documentación
 
 - README: cómo actualizar, comprobar la versión, recalcular análisis anteriores e instalar una versión concreta.
