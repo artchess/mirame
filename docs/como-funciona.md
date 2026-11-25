@@ -73,8 +73,28 @@ Conviene leerlo como la opinión de un oyente atento, no como un veredicto:
 - No oye el tono, las pausas ni el volumen: el clímax lo deduce de las palabras.
 - No responde siempre igual: dos corridas pueden nombrar las partes distinto o mover una transición una o dos frases.
 - Si el recorte no cubre el sermón entero, la estructura describe solo lo que quedó dentro.
+- El modelo importa. Al comparar el mismo sermón, los modelos de OpenAI dieron un análisis más completo que el de Groq, que dividió el sermón en menos partes y no registró aplicaciones: ver [costos-groq.md](costos-groq.md).
 
-## 7. Límites conocidos
+## 7. Cuánto cuesta la IA
+
+Medir la mirada (secciones 1 a 4) no cuesta nada: corre en tu computadora. Las secciones 5 y 6 usan servicios de IA, y el costo depende de la clave:
+
+- Con **Groq** hay una capa gratuita, con un límite de tokens por minuto. En el mismo sermón del ejemplo de abajo transcribió y marcó las lecturas sin cobrar nada, pero la estructura no cupo en el límite. Con el plan de pago de Groq el análisis completo costó unos 4,5 centavos de dólar, pero la pestaña «Sermón» salió mejor con los modelos de OpenAI: ver [costos-groq.md](costos-groq.md).
+- Con **OpenAI** se paga por uso: por minuto de audio al transcribir y por tokens al analizar el texto.
+
+Como ejemplo, un sermón de 35:36 con solo la clave de OpenAI y los modelos por defecto costó **0,98 USD** (24 de noviembre de 2026):
+
+| Paso | Modelo | Consultas | Costo (USD) |
+|---|---|---|---|
+| Transcripción (sección 5) | `whisper-1` | 2 | 0,21 |
+| Lecturas y oración (sección 5) | `gpt-5.4` | 5 | 0,04 |
+| Estructura del sermón (sección 6) | `gpt-5.5` | 7 | 0,73 |
+
+Tres cuartas partes del costo son la estructura del sermón, y dentro de ella lo más caro es buscar los pasajes citados: el modelo razona mucho en cada ventana de 8 minutos. Casi todo crece con los minutos del recorte, así que recortar solo la predicación también ahorra.
+
+Es un ejemplo, no una tarifa: los precios cambian y el modelo no gasta lo mismo en cada corrida. El desglose por consulta, cómo estimar otro sermón y cómo gastar menos están en [costos-openai.md](costos-openai.md).
+
+## 8. Límites conocidos
 
 - **Parpadeos largos y ojos entrecerrados** pueden contarse como mirar abajo. El umbral de ojos (0,45) se eligió revisando muestras a ojo, no con un etiquetado sistemático.
 - **Sin rostro, sin medida.** Si la transmisión muestra la congregación, diapositivas o el texto en pantalla, esos segundos quedan «sin dato». Pasado el 30 %, el reporte avisa que el resultado es poco confiable.
@@ -82,7 +102,7 @@ Conviene leerlo como la opinión de un oyente atento, no como un veredicto:
 - **La cámara cuenta.** Una cámara muy alta o muy baja cambia el ángulo aparente. Como la referencia es la postura habitual de cada sermón, comparar sermones grabados con cámaras distintas es razonable; comparar la cifra exacta con otra herramienta, no.
 - **Falta validar contra un etiquetado humano.** El comando `mirame validar` compara el resultado con un CSV etiquetado a mano (`t,clase` por segundo, o `inicio,fin,clase` por tramos; clase `c`, `a` o `s`). El objetivo es al menos 90 % de coincidencia. Si haces esa validación con tus sermones, compartir el resultado ayuda a todos.
 
-## 8. Qué hay en cada archivo
+## 9. Qué hay en cada archivo
 
 | Archivo | Contenido |
 |---|---|

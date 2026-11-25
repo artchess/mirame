@@ -9,6 +9,7 @@
 - «Anunció sus puntos» muestra cada anuncio con su minuto y sus palabras, y distingue los puntos del sermón de una lista dentro de un punto, que ya no cuenta como anunciar los puntos.
 - **Qué API usar** (Ajustes, campo `api` de la configuración o `MIRAME_API`): «Solo OpenAI» o «Solo Groq» hacen la transcripción y el análisis con esa API aunque haya otras claves. Sin elegir, sigue lo automático: Groq transcribe y OpenAI analiza. Ajustes muestra quién hace cada paso.
 - Con Groq, las consultas al modelo de lenguaje piden una respuesta más larga (hasta 16 000 tokens). Antes Groq la cortaba en unos 3000, razonamiento incluido, y la estructura del sermón fallaba con un error 400 (`json_validate_failed`).
+- Documentación: costos de ejemplo de un sermón con OpenAI y con Groq (`docs/costos-openai.md`, `docs/costos-groq.md`).
 - `mirame recalcular`: `--ojos-seguidos` (filtra parpadeos) y `--zona-ojos` / `--ojos-arriba` (cabeza apenas inclinada con los ojos arriba cuenta como congregación).
 
 ## 0.3.0
