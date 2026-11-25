@@ -271,20 +271,34 @@ Agrupa en un mismo elemento las frases seguidas. Listas vacías si no hay. Si no
 referencia, déjala en ""."""
 
 
+SALIDA_GROQ = 16000          # tokens de respuesta (razonamiento incluido) que se le piden a Groq
+OPCIONALES = ("temperature", "max_completion_tokens")   # si el modelo rechaza uno, se quita
+
+
 def consultar_json(url, llave, modelo, instrucciones, texto, progreso=None) -> dict:
     """Una consulta a un modelo de lenguaje (API compatible con OpenAI) que responde JSON."""
     cuerpo = {"model": modelo, "temperature": 0,
               "response_format": {"type": "json_object"},
               "messages": [{"role": "system", "content": instrucciones},
                            {"role": "user", "content": texto}]}
-    try:
-        r = _pedir(f"{url}/chat/completions", llave, json.dumps(cuerpo).encode(), "application/json", progreso)
-    except RuntimeError as e:
-        # Los modelos con razonamiento de OpenAI no aceptan fijar la temperatura.
-        if isinstance(e, FaltaLlave) or "temperature" not in str(e):
-            raise
-        del cuerpo["temperature"]
-        r = _pedir(f"{url}/chat/completions", llave, json.dumps(cuerpo).encode(), "application/json", progreso)
+    if url == config.GROQ_URL:
+        # Si no se le pide más, Groq corta la respuesta en unos 3000 tokens, y el razonamiento
+        # del modelo cuenta: el JSON llegaba cortado o vacío (HTTP 400 «json_validate_failed»).
+        cuerpo["max_completion_tokens"] = SALIDA_GROQ
+    while True:
+        try:
+            r = _pedir(f"{url}/chat/completions", llave, json.dumps(cuerpo).encode(), "application/json", progreso)
+            break
+        except RuntimeError as e:
+            # Hay modelos que rechazan un parámetro (los de razonamiento de OpenAI no aceptan
+            # fijar la temperatura): se repite la consulta sin él.
+            rechazado = next((p for p in OPCIONALES if p in cuerpo and p in str(e)), None)
+            if rechazado is None and "max_completion_tokens" in cuerpo and "HTTP 413" in str(e):
+                # «Petición demasiado grande»: por si lo pedido cuenta contra el límite por minuto.
+                rechazado = "max_completion_tokens"
+            if isinstance(e, FaltaLlave) or rechazado is None:
+                raise
+            del cuerpo[rechazado]
     contenido = r["choices"][0]["message"]["content"] or "{}"
     contenido = contenido.strip().removeprefix("```json").removeprefix("```").removesuffix("```")
     try:
