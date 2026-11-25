@@ -4,11 +4,15 @@ Sin claves, Mírame mide igual la mirada. Con ellas, además transcribe el audio
 separa la lectura bíblica y las oraciones (lo que hace el resultado más preciso) y
 analiza la estructura y el contenido del sermón.
 
-Basta una clave, de Groq o de OpenAI. Con `api` vacío se elige solo:
-- Transcripción (Whisper): Groq si hay clave; si no, OpenAI.
-- Modelo de lenguaje: el proveedor propio si se configuró; si no, OpenAI; si no, Groq.
+Dos pasos, cada uno con su proveedor (cualquier API compatible con OpenAI). Basta una
+clave, de Groq o de OpenAI; con `api` vacío se elige solo:
+- Transcripción (Whisper): el servicio propio si se configuró; si no, Groq; si no, OpenAI
+  con `whisper-1`.
+- Análisis de la transcripción (marcar lecturas y analizar la estructura): el proveedor
+  propio si se configuró; si no, OpenAI; si no, Groq.
 
-Con `api` en "groq" u "openai" se usa solo esa API para todo, aunque haya otras claves.
+Con `api` en "groq" u "openai" se usa solo esa API para los dos pasos, aunque haya otras
+claves o proveedores propios.
 
 Se guardan en `<carpeta de datos>/configuracion.json` con permisos solo para el
 usuario (0600). Las variables de entorno tienen prioridad sobre el archivo.
@@ -34,6 +38,8 @@ APIS = ("groq", "openai")                # valores de `api`; cualquier otro = au
 # campo → variable de entorno que lo reemplaza
 ENTORNO = {
     "groq_clave": "GROQ_API_KEY",
+    "whisper_url": "MIRAME_WHISPER_URL",
+    "whisper_clave": "MIRAME_WHISPER_KEY",
     "whisper_modelo": "MIRAME_WHISPER_MODELO",
     "llm_url": "MIRAME_LLM_URL",
     "llm_clave": "MIRAME_LLM_KEY",
@@ -42,13 +48,15 @@ ENTORNO = {
     "openai_modelo": "MIRAME_OPENAI_MODELO",
     "api": "MIRAME_API",
 }
-SECRETOS = ("groq_clave", "llm_clave", "openai_clave")
+SECRETOS = ("groq_clave", "whisper_clave", "llm_clave", "openai_clave")
 
 
 @dataclass
 class Configuracion:
     groq_clave: str = ""        # transcripción (Whisper) y, si no hay otro, el modelo de lecturas
-    whisper_modelo: str = ""    # vacío = whisper-large-v3-turbo
+    whisper_url: str = ""       # otro servicio de Whisper compatible con OpenAI; vacío = Groq
+    whisper_clave: str = ""
+    whisper_modelo: str = ""    # vacío = whisper-large-v3-turbo (Groq)
     llm_url: str = ""           # API compatible con OpenAI para marcar lecturas; vacío = Groq
     llm_clave: str = ""
     llm_modelo: str = ""        # vacío = openai/gpt-oss-120b en Groq
@@ -64,11 +72,17 @@ class Configuracion:
         return v if v in APIS else ""
 
     def transcripcion(self) -> tuple[str, str, str] | None:
-        """(url, clave, modelo) de Whisper, o None si no hay clave."""
-        groq = (GROQ_URL, self.groq_clave, self.whisper_modelo or WHISPER_POR_DEFECTO) if self.groq_clave else None
+        """(url, clave, modelo) para transcribir, o None si no hay con qué."""
+        # `whisper_modelo` es del servicio propio cuando hay `whisper_url`; si no, es el de Groq.
+        en_groq = (self.whisper_modelo if not self.whisper_url else "") or WHISPER_POR_DEFECTO
+        groq = (GROQ_URL, self.groq_clave, en_groq) if self.groq_clave else None
         openai = (OPENAI_URL, self.openai_clave, WHISPER_OPENAI) if self.openai_clave else None
         if self.api_elegida:
             return groq if self.api_elegida == "groq" else openai
+        if self.whisper_url:
+            if not self.whisper_clave or not self.whisper_modelo:
+                return None
+            return self.whisper_url.rstrip("/"), self.whisper_clave, self.whisper_modelo
         return groq or openai
 
     def _modelo(self, de_openai: str) -> tuple[str, str, str] | None:

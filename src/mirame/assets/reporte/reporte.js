@@ -43,6 +43,14 @@ const partes = B ? [
 ];
 document.getElementById("cifra").textContent = `${num(R.pct_congregacion)} %`;
 document.getElementById("frase").textContent = "del sermón mirando a la congregación";
+// Margen de error (bootstrap por bloques) y cuánto cambiaría con un umbral más estricto o más laxo.
+{
+  const ic = R.intervalo_congregacion, sens = R.sensibilidad ? Object.values(R.sensibilidad).filter(v => v != null) : [];
+  const partes = [];
+  if (ic) partes.push(`margen de error 95 %: ${num(ic[0])}–${num(ic[1])} %`);
+  if (sens.length === 2) partes.push(`con umbral ${P.umbral - 3}°–${P.umbral + 3}°: ${num(Math.min(...sens))}–${num(Math.max(...sens))} %`);
+  document.getElementById("margen").textContent = partes.join(" · ");
+}
 document.getElementById("reparto").innerHTML = partes.map(([c, v]) =>
   `<span style="width:${v}%;background:var(--${c})"></span>`).join("");
 const partesEl = document.getElementById("partes");
@@ -78,7 +86,9 @@ document.getElementById("metodo").textContent =
   `(${num(P.pitch_calibracion)}°, ${P.metodo_calibracion})` +
   (P.umbral_ojos != null ? ` u ojos bajados (≥ ${num(P.umbral_ojos, 2)})` : "") +
   `. Porcentajes sobre los segundos con rostro visible.` +
-  (B ? ` Lecturas y oraciones marcadas por un modelo de lenguaje sobre la transcripción.` : "");
+  (B ? ` Lecturas y oraciones marcadas por un modelo de lenguaje sobre la transcripción.`
+     : ` Sin transcripción: la lectura bíblica cuenta como mirar abajo; con una clave de Whisper (p. ej. Groq) el resultado es más fino.`) +
+  (P.metodo_version ? ` Método ${P.metodo_version}.` : "");
 document.getElementById("pie-derecha").textContent = `mirame ${P.version}`;
 document.getElementById("zoom-nota").textContent = `${num(P.fps, P.fps % 1 ? 1 : 0)} lecturas/s`;
 document.getElementById("cinta-nota").textContent = "clic para ir a ese momento · arriba: cada segundo · abajo: inclinación de la cabeza";

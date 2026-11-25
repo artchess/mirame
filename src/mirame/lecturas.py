@@ -21,6 +21,7 @@ import uuid
 from pathlib import Path
 
 from . import config
+from .herramientas import ffmpeg
 from .progreso import Progreso
 from .video import duracion, formato_tiempo
 
@@ -178,7 +179,7 @@ def _pedir_tramo(video: Path, inicio: float, largo: float, servicio: tuple[str, 
                  progreso: Progreso) -> list[dict]:
     url, llave, modelo = servicio
     mp3 = tmp / f"a{int(inicio * 10)}-{int(largo * 10)}.mp3"
-    subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", str(inicio), "-t", str(largo),
+    subprocess.run([ffmpeg(), "-v", "error", "-y", "-ss", str(inicio), "-t", str(largo),
                     "-i", str(video), "-vn", "-ac", "1", "-ar", "16000", "-b:a", "32k", str(mp3)],
                    check=True)
     cuerpo, tipo = _multipart({"model": modelo, "language": "es",
@@ -224,7 +225,7 @@ def transcribir(carpeta: Path, progreso: Progreso | None = None) -> Path:
     progreso = progreso or Progreso()
     servicio = config.cargar().transcripcion()
     if servicio is None:
-        raise FaltaLlave("Falta una clave de IA (Groq u OpenAI) para transcribir. Agrégala en Ajustes.")
+        raise FaltaLlave("Falta una clave de transcripción (Whisper). Agrégala en Ajustes.")
     modelo = servicio[2]
     video = carpeta / "video.mp4"
     total = duracion(video)

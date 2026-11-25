@@ -91,17 +91,69 @@ async function revisarGlobo() {
 setInterval(revisarGlobo, 4000);
 
 // ---------------------------------------------------------------- Nuevo análisis
+const esYoutube = t => /(youtube\.com|youtu\.be)\//i.test(t);
+function seg(texto) {
+  // "1:02:03", "62:03", "90" → segundos; vacío o inválido → null
+  const t = String(texto ?? "").trim();
+  if (!t) return null;
+  if (!/^\d+(:\d{1,2}){0,2}$/.test(t)) return NaN;
+  return t.split(":").reduce((a, p) => a * 60 + Number(p), 0);
+}
+
+// Reproductor de vista previa: YouTube (IFrame API) o un <video> local.
+let reproductor = null;
+function cargarApiYoutube() {
+  if (window.YT?.Player) return Promise.resolve();
+  if (!cargarApiYoutube.p) cargarApiYoutube.p = new Promise((ok, mal) => {
+    window.onYouTubeIframeAPIReady = ok;
+    const s = document.createElement("script");
+    s.src = "https://www.youtube.com/iframe_api";
+    s.onerror = mal;
+    document.head.appendChild(s);
+    setTimeout(() => mal(new Error("sin conexión con YouTube")), 10000);
+  });
+  return cargarApiYoutube.p;
+}
+async function vistaYoutube(caja, id, miniatura) {
+  caja.innerHTML = `<div id="yt"></div>`;
+  try {
+    await cargarApiYoutube();
+    await new Promise(ok => {
+      const p = new YT.Player("yt", {
+        videoId: id, width: "100%", height: "100%",
+        playerVars: { rel: 0, modestbranding: 1, playsinline: 1 },
+        events: { onReady: ok, onError: () => { caja.innerHTML = imagenRespaldo(miniatura); reproductor = null; ok(); } },
+      });
+      reproductor = { ahora: () => p.getCurrentTime?.() ?? 0, ir: t => { p.seekTo(t, true); p.pauseVideo?.(); } };
+    });
+  } catch {
+    caja.innerHTML = imagenRespaldo(miniatura);
+    reproductor = null;
+  }
+}
+const imagenRespaldo = m => (m ? `<img src="${esc(m)}" alt="">` : "") +
+  `<div class="sin-vista">Este video no se puede previsualizar aquí. Escribe los tiempos a mano (mm:ss).</div>`;
+function vistaLocal(caja, archivo) {
+  const v = document.createElement("video");
+  v.controls = true; v.preload = "metadata"; v.src = URL.createObjectURL(archivo);
+  caja.replaceChildren(v);
+  reproductor = { ahora: () => v.currentTime, ir: t => { v.currentTime = t; v.pause(); } };
+  return new Promise(ok => { v.onloadedmetadata = () => ok(v.duration); v.onerror = () => ok(null); });
+}
+
 async function verNuevo() {
   plantilla("t-nuevo");
+  reproductor = null;
   const f = $("#f-nuevo");
   const aj = ESTADO?.ajustes || {};
-  const op = $("#op-lecturas"), chk = f.separar_lecturas;
+  const chk = f.separar_lecturas;
+  $("#sugerencia-claves").hidden = !!aj.puede_transcribir;
   if (aj.puede_separar_lecturas) {
     chk.checked = true;
   } else {
     chk.disabled = true;
-    op.classList.add("apagado");
-    $("#lecturas-nota").innerHTML = `Necesita una clave de IA (Groq es gratis). <a href="#/ajustes">Agrégala en Ajustes</a>. Sin ella el análisis funciona igual, solo que la lectura bíblica cuenta como mirar abajo.`;
+    $("#op-lecturas").classList.add("apagado");
+    $("#lecturas-nota").innerHTML = `Necesita una clave de transcripción (Whisper). <a href="#/ajustes">Agrégala en Ajustes</a>. Sin ella el análisis funciona igual, solo que la lectura bíblica cuenta como mirar abajo.`;
   }
   const chkE = f.estructura;
   if (aj.puede_analizar_estructura) {
@@ -111,22 +163,146 @@ async function verNuevo() {
     $("#op-estructura").classList.add("apagado");
     $("#estructura-nota").innerHTML = `Necesita una clave de IA. <a href="#/ajustes">Agrégala en Ajustes</a>.`;
   }
-  if (ESTADO && !ESTADO.ffmpeg) {
-    mostrarError("error-nuevo", "No encuentro ffmpeg en tu computadora. Instálalo antes de analizar (ver README).");
+
+  let archivo = null, info = null, ultimaConsulta = "";
+
+  async function elegido(datos) {
+    info = datos;
+    $("#video-elegido").hidden = false;
+    $("#paso-tramo").hidden = false;
+    $("#paso-opciones").hidden = false;
+    $("#video-titulo").textContent = datos.titulo || "";
+    $("#video-meta").innerHTML = [datos.canal && esc(datos.canal), datos.duracion && `Dura ${hms(datos.duracion)}`,
+      datos.descargado && `<span class="etiqueta listo">ya descargado</span>`].filter(Boolean).join(" · ");
+    f.titulo.placeholder = datos.titulo || "El del video";
+    const dur = Math.round(datos.duracion || 0);
+    for (const r of [$("#r-inicio"), $("#r-fin")]) { r.max = dur; r.disabled = !dur; }
+    $("#r-inicio").value = 0; $("#r-fin").value = dur;
+    f.inicio.value = ""; f.fin.value = "";
+    sincronizarRango();
+    actualizarResumen();
   }
 
-  let archivo = null;
-  $("#archivo").addEventListener("change", e => {
+  async function leerEnlace() {
+    const url = f.origen.value.trim();
+    if (!url || url === ultimaConsulta || !esYoutube(url)) return;
+    ultimaConsulta = url; archivo = null; $("#archivo-elegido").textContent = "";
+    ocultarError("error-info"); $("#cargando-info").hidden = false;
+    try {
+      const d = await api("info", { method: "POST", body: { origen: url } });
+      if (f.origen.value.trim() !== url) return;
+      await elegido(d);
+      vistaYoutube($("#vista-previa"), d.youtube_id, d.miniatura);
+    } catch (err) {
+      mostrarError("error-info", err.message);
+      $("#video-elegido").hidden = $("#paso-tramo").hidden = $("#paso-opciones").hidden = true;
+      info = null;
+    } finally { $("#cargando-info").hidden = true; }
+  }
+  let espera;
+  f.origen.addEventListener("input", () => { clearTimeout(espera); espera = setTimeout(leerEnlace, 500); });
+  f.origen.addEventListener("paste", () => setTimeout(leerEnlace, 50));
+
+  $("#archivo").addEventListener("change", async e => {
     archivo = e.target.files[0] || null;
-    $("#archivo-elegido").textContent = archivo ? `${archivo.name} (${tamano(archivo.size / 1e6)})` : "";
-    if (archivo) f.origen.value = "";
+    if (!archivo) return;
+    f.origen.value = ""; ultimaConsulta = "";
+    $("#archivo-elegido").textContent = `${archivo.name} (${tamano(archivo.size / 1e6)})`;
+    ocultarError("error-info");
+    const caja = $("#vista-previa");
+    const duracion = await vistaLocal(caja, archivo);
+    await elegido({ titulo: archivo.name.replace(/\.[^.]+$/, ""), duracion, canal: "Archivo de tu computadora" });
   });
-  f.origen.addEventListener("input", () => { if (f.origen.value) { archivo = null; $("#archivo-elegido").textContent = ""; } });
+
+  // ---- tramo: todo o una parte
+  for (const r of f.querySelectorAll("[name=alcance]")) r.addEventListener("change", () => {
+    const tramo = f.alcance.value === "tramo";
+    $("#tramo").hidden = !tramo;
+    $("#nota-alcance").hidden = tramo;
+    actualizarResumen();
+  });
+  function sincronizarRango() {
+    const a = +$("#r-inicio").value, b = +$("#r-fin").value, max = +$("#r-fin").max || 1;
+    const sel = $("#rango-sel");
+    sel.style.left = `${a / max * 100}%`; sel.style.width = `${Math.max(0, b - a) / max * 100}%`;
+  }
+  function desdeRango(cual) {
+    const ri = $("#r-inicio"), rf = $("#r-fin");
+    if (+ri.value > +rf.value - 1) { if (cual === "inicio") ri.value = +rf.value - 1; else rf.value = +ri.value + 1; }
+    f.inicio.value = +ri.value ? hms(+ri.value) : "";
+    f.fin.value = +rf.value < +rf.max ? hms(+rf.value) : "";
+    sincronizarRango(); actualizarResumen();
+  }
+  $("#r-inicio").addEventListener("input", () => desdeRango("inicio"));
+  $("#r-fin").addEventListener("input", () => desdeRango("fin"));
+  for (const [campo, r] of [["inicio", "#r-inicio"], ["fin", "#r-fin"]]) {
+    f[campo].addEventListener("change", () => {
+      const v = seg(f[campo].value);
+      if (v != null && !isNaN(v)) { $(r).value = v; sincronizarRango(); }
+      actualizarResumen();
+    });
+  }
+  f.addEventListener("click", e => {
+    const m = e.target.closest("[data-marcar]");
+    if (m) {
+      if (!reproductor) { toast("Escribe el tiempo a mano: este video no tiene vista previa."); return; }
+      const t = Math.floor(reproductor.ahora());
+      f[m.dataset.marcar].value = hms(t);
+      $(m.dataset.marcar === "inicio" ? "#r-inicio" : "#r-fin").value = t;
+      sincronizarRango(); actualizarResumen();
+    }
+    const ir = e.target.closest("[data-ir]");
+    if (ir && reproductor) {
+      const v = seg(f[ir.dataset.ir].value);
+      reproductor.ir(v == null || isNaN(v) ? (ir.dataset.ir === "inicio" ? 0 : Math.max(0, (info?.duracion || 1) - 5)) : v);
+    }
+  });
+
+  // ---- resumen: qué se analiza, cuánto tarda y qué conviene revisar
+  function tramoElegido() {
+    const tramo = f.alcance.value === "tramo";
+    return { inicio: tramo ? seg(f.inicio.value) : null, fin: tramo ? seg(f.fin.value) : null };
+  }
+  let esperaResumen;
+  function actualizarResumen() {
+    clearTimeout(esperaResumen);
+    esperaResumen = setTimeout(async () => {
+      if (!info) return;
+      const { inicio, fin } = tramoElegido();
+      const caja = $("#resumen-envio"), avisos = $("#avisos");
+      if (Number.isNaN(inicio) || Number.isNaN(fin)) {
+        caja.textContent = ""; avisos.innerHTML = `<li class="mal">Escribe los tiempos como mm:ss o h:mm:ss.</li>`; return;
+      }
+      if (inicio != null && fin != null && fin <= inicio) {
+        caja.textContent = ""; avisos.innerHTML = `<li class="mal">El fin debe ser después del inicio.</li>`; return;
+      }
+      if (info.duracion && fin != null && fin > info.duracion + 1) {
+        caja.textContent = ""; avisos.innerHTML = `<li class="mal">El video dura ${hms(info.duracion)}: el fin no puede pasar de ahí.</li>`; return;
+      }
+      try {
+        const e = await api("estimar", { method: "POST", body: {
+          duracion: info.duracion, inicio: inicio != null ? String(inicio) : null, fin: fin != null ? String(fin) : null,
+          fps: f.fps.value, lecturas: chk.checked, estructura: chkE.checked, descargar: !archivo && !info.descargado } });
+        const desde = inicio ? ` (de ${hms(inicio)} a ${hms(fin ?? info.duracion)})` : fin ? ` (hasta ${hms(fin)})` : "";
+        caja.innerHTML = info.duracion
+          ? `Se analizarán <b>${hms(e.tramo)}</b>${desde}. Tardará unos <b>${Math.max(1, Math.round(e.segundos / 60))} min</b> en esta computadora.`
+          : "";
+        avisos.innerHTML = e.advertencias.map(a => `<li>${esc(a)}</li>`).join("");
+      } catch { /* la estimación es solo orientativa */ }
+    }, 250);
+  }
+  chk.addEventListener("change", actualizarResumen);
+  chkE.addEventListener("change", actualizarResumen);
+  f.fps.addEventListener("change", actualizarResumen);
 
   f.addEventListener("submit", async e => {
     e.preventDefault();
     ocultarError("error-nuevo");
     const datos = Object.fromEntries(new FormData(f));
+    const { inicio, fin } = tramoElegido();
+    if (Number.isNaN(inicio) || Number.isNaN(fin)) return mostrarError("error-nuevo", "Revisa los tiempos del tramo (mm:ss).");
+    datos.inicio = inicio != null ? String(inicio) : "";
+    datos.fin = fin != null ? String(fin) : "";
     datos.separar_lecturas = chk.checked;
     datos.estructura = chkE.checked;
     datos.solo_cabeza = f.solo_cabeza.checked;
@@ -134,11 +310,7 @@ async function verNuevo() {
     b.disabled = true;
     try {
       if (archivo) {
-        b.textContent = "Subiendo el video…";
-        const r = await fetch(`/api/subir?nombre=${encodeURIComponent(archivo.name)}`, { method: "POST", body: archivo });
-        const j = await r.json();
-        if (!r.ok) throw new Error(j.error || "No se pudo subir el video.");
-        datos.origen = j.ruta;
+        datos.origen = await subir(archivo, pct => { b.textContent = `Subiendo el video… ${pct} %`; });
         if (!datos.titulo) datos.titulo = archivo.name.replace(/\.[^.]+$/, "");
       }
       if (!datos.origen) throw new Error("Pega el enlace de YouTube o elige un archivo de video.");
@@ -150,6 +322,22 @@ async function verNuevo() {
     }
   });
   f.origen.focus();
+}
+
+// Subida con avance (fetch no informa el progreso de envío).
+function subir(archivo, avance) {
+  return new Promise((ok, mal) => {
+    const x = new XMLHttpRequest();
+    x.open("POST", `/api/subir?nombre=${encodeURIComponent(archivo.name)}`);
+    x.upload.onprogress = e => e.lengthComputable && avance(Math.round(e.loaded / e.total * 100));
+    x.onload = () => {
+      let j = {};
+      try { j = JSON.parse(x.responseText); } catch { /* respuesta vacía */ }
+      x.status < 300 ? ok(j.ruta) : mal(new Error(j.error || "No se pudo subir el video."));
+    };
+    x.onerror = () => mal(new Error("La subida se cortó."));
+    x.send(archivo);
+  });
 }
 
 function mostrarError(id, texto) { const el = $(`#${id}`); if (el) { el.textContent = texto; el.hidden = false; } }
@@ -181,6 +369,12 @@ async function pintarTrabajos() {
     caja.innerHTML = trabajos.map(t => {
       const activo = t.estado === "en_cola" || t.estado === "corriendo";
       const pct = t.fraccion != null ? Math.round(t.fraccion * 100) : null;
+      const general = Math.round((t.general || 0) * 100);
+      const etapas = (t.plan || []).map(e => {
+        const hecha = t.hechas.includes(e) || t.estado === "listo";
+        const actual = !hecha && e === t.etapa && t.estado === "corriendo";
+        return `<li class="${hecha ? "hecha" : actual ? "actual" : ""}">${hecha ? "✓" : actual ? "●" : "○"} ${esc(e)}${actual && pct != null ? ` <b>${pct} %</b>` : ""}</li>`;
+      }).join("");
       return `<div class="tarjeta trabajo ${t.estado}">
         <div class="trabajo-cabeza">
           <div>
@@ -193,8 +387,12 @@ async function pintarTrabajos() {
             ${t.estado === "listo" && t.analisis ? `<a class="boton chico" href="/analisis/${encodeURIComponent(t.analisis)}/reporte.html${t.tipo === "estructura" ? "?vista=sermon" : ""}">Abrir reporte</a>` : ""}
           </div>
         </div>
-        ${activo ? `<div class="barra-avance ${pct == null ? "indef" : ""}"><span style="width:${pct ?? 0}%"></span></div>
-          <div class="trabajo-detalle"><b>${esc(t.etapa || "En cola")}</b>${t.mensaje ? ` · ${esc(t.mensaje)}` : ""}${pct != null ? ` · ${pct} %` : ""}</div>` : ""}
+        ${activo ? `<div class="barra-avance ${t.estado === "en_cola" ? "indef" : ""}"><span style="width:${general}%"></span></div>
+          <div class="trabajo-detalle avance-texto"><b>${t.estado === "en_cola" ? "Esperando turno" : `${general} %`}</b>
+            · ${hms(t.transcurrido)} transcurridos${t.restante != null ? ` · faltan ~${hms(t.restante)}` : ""}</div>
+          ${etapas ? `<ul class="etapas">${etapas}</ul>` : ""}
+          ${t.mensaje ? `<div class="trabajo-detalle">${esc(t.mensaje)}</div>` : ""}` : ""}
+        ${t.estado === "listo" ? `<div class="trabajo-detalle">Terminado en ${hms(t.transcurrido)}.</div>` : ""}
         ${t.estado === "error" ? `<div class="error">${esc(t.error)}</div>` : ""}
       </div>`;
     }).join("");
@@ -299,23 +497,33 @@ async function verAjustes() {
   plantilla("t-ajustes");
   const f = $("#f-ajustes");
   const aj = await api("ajustes");
-  for (const k of ["groq_clave", "openai_clave", "llm_url", "llm_clave", "llm_modelo"]) f[k].value = aj[k] || "";
-  const otro = !!aj.llm_url;
-  f.proveedor.value = otro ? "otro" : "groq";
-  $("#otro-proveedor").hidden = !otro;
+  for (const k of ["groq_clave", "openai_clave", "whisper_url", "whisper_clave", "whisper_modelo", "llm_url", "llm_clave", "llm_modelo"])
+    f[k].value = aj[k] || "";
+  f.prov_whisper.value = aj.whisper_url ? "otro" : "groq";
+  f.proveedor.value = aj.llm_url ? "otro" : "groq";
   f.api.value = aj.api || "";
+  const mostrar = () => {
+    const wOtro = f.prov_whisper.value === "otro", lOtro = f.proveedor.value === "otro";
+    $("#whisper-otro").hidden = !wOtro;
+    // La clave de Groq hace falta si cualquiera de los dos pasos usa Groq.
+    $("#whisper-groq").hidden = wOtro && lOtro && f.api.value !== "groq";
+    $("#otro-proveedor").hidden = !lOtro;
+  };
+  mostrar();
+  for (const r of f.querySelectorAll("[name=prov_whisper],[name=proveedor],[name=api]")) r.addEventListener("change", mostrar);
+  $("#estado-claves").innerHTML = aj.puede_separar_lecturas
+    ? `<span class="etiqueta listo">Listo</span> Mírame separará la lectura bíblica y la oración${aj.puede_analizar_estructura ? ", y podrá analizar la estructura del sermón" : ""}.`
+    : aj.puede_transcribir
+      ? `<span class="etiqueta en_cola">Falta el paso 2</span> Ya puede transcribir; falta el modelo que marca las lecturas.`
+      : `<span class="etiqueta incompleto">Sin claves</span> Mírame mide la mirada; la lectura bíblica cuenta como mirar abajo.`;
+  $("#guardado-en").textContent = aj.desde_entorno?.length
+    ? `Algunos valores vienen de variables de entorno y tienen prioridad: ${aj.desde_entorno.join(", ")}.`
+    : `Se guardan solo en tu computadora (${ESTADO?.datos || ""}/configuracion.json).`;
+  // Quién hace cada paso con lo guardado (cambia con «Qué API usar»).
   const u = aj.en_uso || {};
   $("#en-uso").textContent = u.transcripcion
     ? `Ahora transcribe con ${u.transcripcion}; marca las lecturas con ${u.lecturas || "(falta configurar)"}; analiza la estructura con ${u.estructura || "(falta configurar)"}.`
     : (aj.api ? "Falta la clave de la API elegida: sin ella no se usa la IA." : "");
-  if (aj.desde_entorno?.length) {
-    $("#guardado-en").textContent = `Algunos valores vienen de variables de entorno y tienen prioridad: ${aj.desde_entorno.join(", ")}.`;
-  } else {
-    $("#guardado-en").textContent = `Se guardan solo en tu computadora (${ESTADO?.datos || ""}/configuracion.json).`;
-  }
-
-  for (const r of f.querySelectorAll("[name=proveedor]"))
-    r.addEventListener("change", () => { $("#otro-proveedor").hidden = f.proveedor.value !== "otro"; });
 
   f.addEventListener("click", async e => {
     const ver = e.target.closest("[data-ver]");
@@ -332,6 +540,7 @@ async function verAjustes() {
       try {
         const r = await api("ajustes/probar", { method: "POST", body: {
           tipo, groq_clave: f.groq_clave.value, openai_clave: f.openai_clave.value,
+          whisper_url: f.whisper_url.value, whisper_clave: f.whisper_clave.value,
           llm_url: f.llm_url.value, llm_clave: f.llm_clave.value } });
         caja.className = `resultado-prueba ${r.ok ? "ok" : "mal"}`;
         caja.textContent = (r.ok ? "✓ " : "✗ ") + r.mensaje;
@@ -343,24 +552,23 @@ async function verAjustes() {
   f.addEventListener("submit", async e => {
     e.preventDefault();
     ocultarError("error-ajustes");
-    const otro = f.proveedor.value === "otro";
-    if (otro && (!f.llm_url.value || !f.llm_clave.value || !f.llm_modelo.value)) {
-      mostrarError("error-ajustes", "Para otro proveedor completa la URL, la clave y el modelo.");
-      return;
-    }
+    const wOtro = f.prov_whisper.value === "otro", lOtro = f.proveedor.value === "otro";
+    if (wOtro && (!f.whisper_url.value || !f.whisper_clave.value || !f.whisper_modelo.value))
+      return mostrarError("error-ajustes", "Para otro servicio de transcripción completa la URL, la clave y el modelo.");
+    if (lOtro && (!f.llm_url.value || !f.llm_clave.value || !f.llm_modelo.value))
+      return mostrarError("error-ajustes", "Para otro proveedor de análisis completa la URL, la clave y el modelo.");
     const elegida = f.api.value;
-    if (elegida && !f[`${elegida}_clave`].value) {
-      mostrarError("error-ajustes", `Para usar solo ${elegida === "groq" ? "Groq" : "OpenAI"} escribe su clave.`);
-      return;
-    }
+    if (elegida && !f[`${elegida}_clave`].value)
+      return mostrarError("error-ajustes", `Para usar solo ${elegida === "groq" ? "Groq" : "OpenAI"} escribe su clave.`);
     try {
       await api("ajustes", { method: "POST", body: {
         api: elegida,
-        groq_clave: f.groq_clave.value,
         openai_clave: f.openai_clave.value,
-        llm_url: otro ? f.llm_url.value : "",
-        llm_clave: otro ? f.llm_clave.value : "",
-        llm_modelo: otro ? f.llm_modelo.value : "",
+        groq_clave: wOtro && lOtro && elegida !== "groq" ? "" : f.groq_clave.value,
+        whisper_url: wOtro ? f.whisper_url.value : "", whisper_clave: wOtro ? f.whisper_clave.value : "",
+        whisper_modelo: wOtro ? f.whisper_modelo.value : "",
+        llm_url: lOtro ? f.llm_url.value : "", llm_clave: lOtro ? f.llm_clave.value : "",
+        llm_modelo: lOtro ? f.llm_modelo.value : "",
       } });
       toast("Ajustes guardados.");
       ESTADO = await api("estado");

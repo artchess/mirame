@@ -48,6 +48,10 @@ class Trabajo:
             "id": self.id, "tipo": self.tipo, "titulo": self.titulo, "estado": self.estado,
             "analisis": self.analisis, "error": self.error,
             "etapa": p.etapa, "fraccion": p.fraccion, "mensaje": p.mensaje, "lineas": p.lineas[-8:],
+            "plan": p.plan, "hechas": p.hechas,
+            "general": 1.0 if self.estado == "listo" else round(p.general(), 3),
+            "restante": None if self.estado != "corriendo" else p.restante(),
+            "transcurrido": round((self.terminado or time.time()) - self.creado),
             "creado": self.creado, "terminado": self.terminado,
         }
 

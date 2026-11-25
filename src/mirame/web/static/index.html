@@ -39,57 +39,102 @@
 
 <!-- ============================================================ Plantillas -->
 <template id="t-nuevo">
-  <section class="hoja angosta">
+  <section class="hoja media">
     <h1>¿Hacia dónde mira el predicador?</h1>
     <p class="intro">Pega el enlace de un sermón en YouTube. Mírame revisa el video cuatro veces por segundo
       y te dice qué parte del tiempo miró a la congregación y qué parte a sus notas.</p>
 
-    <form id="f-nuevo" class="tarjeta" autocomplete="off">
-      <label class="campo grande">
-        <span>Enlace de YouTube</span>
-        <input name="origen" type="url" placeholder="https://www.youtube.com/watch?v=…" inputmode="url">
-      </label>
-      <div class="o-archivo">
-        <span>o</span>
-        <label class="boton secundario chico"><input type="file" id="archivo" accept="video/*" hidden>Elegir un video de tu computadora</label>
-        <span class="archivo-elegido" id="archivo-elegido"></span>
-      </div>
+    <div class="sugerencia" id="sugerencia-claves" hidden>
+      <b>Funciona sin claves de IA.</b> Si agregas una clave de transcripción (Whisper), el resultado es más fino:
+      separa la lectura bíblica de la lectura de notas, deja fuera las oraciones y puede analizar la estructura
+      del sermón. Te sugerimos
+      <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Groq</a>, que es gratis; también sirve
+      OpenAI u otro servicio compatible. <a href="#/ajustes">Agregar en Ajustes →</a>
+    </div>
 
-      <div class="fila-3">
-        <label class="campo"><span>Inicio del sermón</span>
-          <input name="inicio" placeholder="mm:ss" pattern="^\d{1,2}(:\d{1,2}){1,2}$"></label>
-        <label class="campo"><span>Fin del sermón</span>
-          <input name="fin" placeholder="mm:ss" pattern="^\d{1,2}(:\d{1,2}){1,2}$"></label>
-        <label class="campo"><span>Título</span>
-          <input name="titulo" placeholder="El de YouTube"></label>
-      </div>
-      <p class="nota">Inicio, fin y título son opcionales. Recorta solo la predicación: sin alabanza ni anuncios, el resultado es más fiel.</p>
-
-      <label class="interruptor" id="op-lecturas">
-        <input type="checkbox" name="separar_lecturas">
-        <span><b>Separar la lectura bíblica y la oración</b>
-          <small id="lecturas-nota">Usa IA para transcribir el sermón. Leer la Biblia no cuenta como leer notas, y orar con los ojos cerrados no cuenta como mirar abajo.</small></span>
-      </label>
-
-      <label class="interruptor" id="op-estructura">
-        <input type="checkbox" name="estructura">
-        <span><b>Analizar la estructura del sermón</b>
-          <small id="estructura-nota">Usa IA sobre la transcripción: las partes y sus transiciones, el argumento y el clímax, cómo conecta con el evangelio, las aplicaciones y los pasajes citados, cada cosa con su minuto.</small></span>
-      </label>
-
-      <details class="avanzado">
-        <summary>Opciones avanzadas</summary>
-        <div class="fila-3">
-          <label class="campo"><span>Fotogramas por segundo</span><input name="fps" type="number" min="1" max="25" step="0.5" value="4"></label>
-          <label class="campo"><span>Umbral de la cabeza (°)</span><input name="umbral" type="number" min="5" max="40" step="1" value="15"></label>
-          <label class="campo"><span>Umbral de los ojos (0–1)</span><input name="umbral_ojos" type="number" min="0.1" max="0.9" step="0.05" value="0.45"></label>
+    <form id="f-nuevo" autocomplete="off">
+      <div class="tarjeta">
+        <div class="paso"><span class="n">1</span> El video</div>
+        <label class="campo grande">
+          <span class="oculto">Enlace de YouTube</span>
+          <input name="origen" type="url" placeholder="Pega el enlace de YouTube: https://www.youtube.com/watch?v=…" inputmode="url">
+        </label>
+        <div class="o-archivo">
+          <span>o</span>
+          <label class="boton secundario chico"><input type="file" id="archivo" accept="video/*" hidden>Elegir un video de tu computadora</label>
+          <span class="archivo-elegido" id="archivo-elegido"></span>
         </div>
-        <label class="interruptor chico"><input type="checkbox" name="solo_cabeza"><span>Medir solo la cabeza (ignorar los ojos)</span></label>
-        <p class="nota">A 4 fotogramas por segundo el resultado casi no cambia frente a 12, y tarda unas cinco veces menos.</p>
-      </details>
+        <div class="cargando" id="cargando-info" hidden>Leyendo el video…</div>
+        <div class="error" id="error-info" hidden></div>
 
-      <div class="error" id="error-nuevo" hidden></div>
-      <button type="submit" class="principal" id="b-analizar">Analizar sermón</button>
+        <div class="video-elegido" id="video-elegido" hidden>
+          <div class="vista-previa" id="vista-previa"></div>
+          <div class="video-datos">
+            <div class="video-titulo" id="video-titulo"></div>
+            <div class="video-meta" id="video-meta"></div>
+            <label class="campo"><span>Título del análisis</span><input name="titulo" placeholder="El del video"></label>
+          </div>
+        </div>
+      </div>
+
+      <div class="tarjeta" id="paso-tramo" hidden>
+        <div class="paso"><span class="n">2</span> ¿Qué parte analizar?</div>
+        <div class="segmentado" role="radiogroup">
+          <label><input type="radio" name="alcance" value="todo" checked><span>Todo el video</span></label>
+          <label><input type="radio" name="alcance" value="tramo"><span>Solo un tramo</span></label>
+        </div>
+        <p class="nota" id="nota-alcance">Útil si el video es solo la predicación. Si incluye alabanza, anuncios u oración final, elige «Solo un tramo».</p>
+
+        <div id="tramo" hidden>
+          <div class="rango" id="rango">
+            <div class="rango-pista"><div class="rango-sel" id="rango-sel"></div></div>
+            <input type="range" id="r-inicio" min="0" step="1" aria-label="Inicio">
+            <input type="range" id="r-fin" min="0" step="1" aria-label="Fin">
+          </div>
+          <div class="fila-tramo">
+            <div class="extremo">
+              <label class="campo"><span>Empieza en</span><input name="inicio" placeholder="0:00" inputmode="numeric"></label>
+              <button type="button" class="secundario chico" data-marcar="inicio">Marcar aquí</button>
+              <button type="button" class="texto chico" data-ir="inicio">Ver</button>
+            </div>
+            <div class="extremo">
+              <label class="campo"><span>Termina en</span><input name="fin" placeholder="fin" inputmode="numeric"></label>
+              <button type="button" class="secundario chico" data-marcar="fin">Marcar aquí</button>
+              <button type="button" class="texto chico" data-ir="fin">Ver</button>
+            </div>
+          </div>
+          <p class="nota">Reproduce el video de arriba, páusalo donde empieza la predicación y pulsa «Marcar aquí». Haz lo mismo con el final.</p>
+        </div>
+      </div>
+
+      <div class="tarjeta" id="paso-opciones" hidden>
+        <div class="paso"><span class="n">3</span> Opciones</div>
+        <label class="interruptor" id="op-lecturas">
+          <input type="checkbox" name="separar_lecturas">
+          <span><b>Separar la lectura bíblica y la oración</b>
+            <small id="lecturas-nota">Usa IA para transcribir el sermón. Leer la Biblia no cuenta como leer notas, y orar con los ojos cerrados no cuenta como mirar abajo.</small></span>
+        </label>
+        <label class="interruptor" id="op-estructura">
+          <input type="checkbox" name="estructura">
+          <span><b>Analizar la estructura del sermón</b>
+            <small id="estructura-nota">Usa IA sobre la transcripción: las partes y sus transiciones, el argumento y el clímax, cómo conecta con el evangelio, las aplicaciones y los pasajes citados, cada cosa con su minuto.</small></span>
+        </label>
+        <details class="avanzado">
+          <summary>Opciones avanzadas</summary>
+          <div class="fila-3">
+            <label class="campo"><span>Fotogramas por segundo</span><input name="fps" type="number" min="1" max="25" step="0.5" value="4"></label>
+            <label class="campo"><span>Umbral de la cabeza (°)</span><input name="umbral" type="number" min="5" max="40" step="1" value="15"></label>
+            <label class="campo"><span>Umbral de los ojos (0–1)</span><input name="umbral_ojos" type="number" min="0.1" max="0.9" step="0.05" value="0.45"></label>
+          </div>
+          <label class="interruptor chico"><input type="checkbox" name="solo_cabeza"><span>Medir solo la cabeza (ignorar los ojos)</span></label>
+          <p class="nota">A 4 fotogramas por segundo el resultado casi no cambia frente a 12, y tarda unas cinco veces menos.</p>
+        </details>
+
+        <div class="resumen-envio" id="resumen-envio"></div>
+        <ul class="avisos" id="avisos"></ul>
+        <div class="error" id="error-nuevo" hidden></div>
+        <button type="submit" class="principal" id="b-analizar">Analizar sermón</button>
+      </div>
     </form>
 
     <div class="tarjeta como">
@@ -121,52 +166,55 @@
   <section class="hoja angosta">
     <h1>Ajustes</h1>
     <div class="explica">
-      <b>Mírame funciona sin claves de IA.</b> Mide la mirada igual. Las claves agregan dos pasos opcionales sobre
-      la transcripción del sermón: separar la <span class="c-biblia">lectura bíblica</span> y la oración (leer la Biblia en voz alta
-      deja de confundirse con leer notas) y analizar la estructura del sermón: partes y transiciones, argumento y clímax,
-      evangelio, aplicaciones y pasajes citados. Basta una clave, de Groq o de OpenAI.
+      <b>Mírame funciona sin claves de IA</b> y mide la mirada igual. Las claves agregan un paso opcional que hace
+      el resultado más fino: transcribir el sermón para separar la <span class="c-biblia">lectura bíblica</span>
+      de la lectura de notas y dejar fuera las oraciones (con los ojos cerrados parecería que mira abajo). Sobre esa
+      transcripción también se puede analizar la estructura del sermón: partes y transiciones, argumento y clímax,
+      evangelio, aplicaciones y pasajes citados.
     </div>
 
     <form id="f-ajustes" class="tarjeta" autocomplete="off">
-      <h2>Groq</h2>
-      <p class="nota">Groq transcribe el audio con Whisper y, con la misma clave, analiza el texto. Crea una clave gratis en
-        <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a>.</p>
-      <label class="campo"><span>Clave de Groq</span>
-        <div class="con-boton">
-          <input name="groq_clave" type="password" placeholder="gsk_…" spellcheck="false">
-          <button type="button" class="secundario chico" data-ver="groq_clave">Ver</button>
-          <button type="button" class="secundario chico" data-probar="groq">Probar</button>
-        </div>
-      </label>
-      <div class="resultado-prueba" id="prueba-groq"></div>
+      <h2>1. Transcripción (Whisper)</h2>
+      <p class="nota">Convierte el audio en texto con el tiempo de cada frase. Recomendamos
+        <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Groq</a>: es gratis, rápido y con la misma
+        clave también hace el paso 2.</p>
+      <label class="interruptor chico"><input type="radio" name="prov_whisper" value="groq" checked>
+        <span>Groq <small>(whisper-large-v3-turbo)</small></span></label>
+      <label class="interruptor chico"><input type="radio" name="prov_whisper" value="otro">
+        <span>Otro servicio compatible con OpenAI <small>(OpenAI <code>whisper-1</code>, un servidor propio…)</small></span></label>
 
-      <h2>OpenAI</h2>
-      <p class="nota">Con una clave de <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com</a>
-        Mírame analiza el texto con los modelos de OpenAI y, si no hay clave de Groq, también transcribe con Whisper.
-        Es de pago: como ejemplo, un sermón de 35 minutos costó cerca de un dólar. La pestaña «Sermón» sale mejor con sus modelos.</p>
-      <label class="campo"><span>Clave de OpenAI</span>
-        <div class="con-boton">
-          <input name="openai_clave" type="password" placeholder="sk-…" spellcheck="false">
-          <button type="button" class="secundario chico" data-ver="openai_clave">Ver</button>
-          <button type="button" class="secundario chico" data-probar="openai">Probar</button>
-        </div>
-      </label>
-      <div class="resultado-prueba" id="prueba-openai"></div>
+      <div id="whisper-groq">
+        <label class="campo"><span>Clave de Groq</span>
+          <div class="con-boton">
+            <input name="groq_clave" type="password" placeholder="gsk_…" spellcheck="false">
+            <button type="button" class="secundario chico" data-ver="groq_clave">Ver</button>
+            <button type="button" class="secundario chico" data-probar="groq">Probar</button>
+          </div>
+        </label>
+        <div class="resultado-prueba" id="prueba-groq"></div>
+      </div>
+      <div id="whisper-otro" hidden>
+        <label class="campo"><span>URL base de la API</span>
+          <input name="whisper_url" placeholder="https://api.openai.com/v1" spellcheck="false"></label>
+        <label class="campo"><span>Clave</span>
+          <div class="con-boton">
+            <input name="whisper_clave" type="password" spellcheck="false">
+            <button type="button" class="secundario chico" data-ver="whisper_clave">Ver</button>
+            <button type="button" class="secundario chico" data-probar="whisper">Probar</button>
+          </div>
+        </label>
+        <div class="resultado-prueba" id="prueba-whisper"></div>
+        <label class="campo"><span>Modelo</span>
+          <input name="whisper_modelo" placeholder="whisper-1" spellcheck="false"></label>
+      </div>
 
-      <h2>Qué API usar</h2>
-      <label class="interruptor chico"><input type="radio" name="api" value="" checked>
-        <span>Automático <small>(Groq transcribe; el texto lo analiza OpenAI si hay clave y, si no, Groq)</small></span></label>
-      <label class="interruptor chico"><input type="radio" name="api" value="openai">
-        <span>Solo OpenAI <small>(transcribe y analiza, aunque haya clave de Groq)</small></span></label>
-      <label class="interruptor chico"><input type="radio" name="api" value="groq">
-        <span>Solo Groq <small>(transcribe y analiza, aunque haya clave de OpenAI)</small></span></label>
-      <p class="nota" id="en-uso"></p>
-
-      <h2>Modelo de lenguaje</h2>
+      <h2>2. Análisis de la transcripción</h2>
+      <p class="nota">Un modelo de lenguaje marca qué frases son lectura bíblica (en cualquier versión) y cuáles son oración,
+        y analiza la estructura del sermón.</p>
       <label class="interruptor chico"><input type="radio" name="proveedor" value="groq" checked>
-        <span>Automático <small>(OpenAI si hay clave; si no, openai/gpt-oss-120b en Groq)</small></span></label>
+        <span>Groq u OpenAI <small>(OpenAI si pusiste su clave abajo; si no, openai/gpt-oss-120b con la clave de Groq)</small></span></label>
       <label class="interruptor chico"><input type="radio" name="proveedor" value="otro">
-        <span>Otro proveedor compatible con OpenAI <small>(OpenRouter, Azure, LiteLLM, DeepSeek, Ollama…)</small></span></label>
+        <span>Otro proveedor compatible con OpenAI <small>(OpenAI, OpenRouter, Azure, DeepSeek, LiteLLM, Ollama…)</small></span></label>
 
       <div id="otro-proveedor" hidden>
         <label class="campo"><span>URL base de la API</span>
@@ -182,9 +230,33 @@
         <label class="campo"><span>Modelo</span>
           <input name="llm_modelo" list="modelos" placeholder="deepseek-chat" spellcheck="false"></label>
         <datalist id="modelos"></datalist>
-        <p class="nota">Se usa para marcar las lecturas y para analizar la estructura. Para la estructura conviene un modelo capaz, que lea el sermón completo de una vez. Con «Solo OpenAI» o «Solo Groq» no se usa.</p>
+        <p class="nota">Para marcar las lecturas conviene un modelo rápido y sin razonamiento: la tarea es marcar frases, no pensar.
+          Para la estructura conviene uno capaz, que lea el sermón completo de una vez.</p>
       </div>
 
+      <h2>OpenAI (opcional)</h2>
+      <p class="nota">Con una clave de <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com</a>
+        el paso 2 usa los modelos de OpenAI y, si no hay otra forma de transcribir, el paso 1 usa <code>whisper-1</code>.
+        Es de pago: como ejemplo, un sermón de 35 minutos costó cerca de un dólar. La pestaña «Sermón» sale mejor con sus modelos.</p>
+      <label class="campo"><span>Clave de OpenAI</span>
+        <div class="con-boton">
+          <input name="openai_clave" type="password" placeholder="sk-…" spellcheck="false">
+          <button type="button" class="secundario chico" data-ver="openai_clave">Ver</button>
+          <button type="button" class="secundario chico" data-probar="openai">Probar</button>
+        </div>
+      </label>
+      <div class="resultado-prueba" id="prueba-openai"></div>
+
+      <h2>Qué API usar</h2>
+      <label class="interruptor chico"><input type="radio" name="api" value="" checked>
+        <span>Automático <small>(lo elegido en los pasos 1 y 2)</small></span></label>
+      <label class="interruptor chico"><input type="radio" name="api" value="openai">
+        <span>Solo OpenAI <small>(transcribe y analiza, aunque haya otras claves o servicios)</small></span></label>
+      <label class="interruptor chico"><input type="radio" name="api" value="groq">
+        <span>Solo Groq <small>(transcribe y analiza, aunque haya otras claves o servicios)</small></span></label>
+      <p class="nota" id="en-uso"></p>
+
+      <div class="estado-claves" id="estado-claves"></div>
       <div class="error" id="error-ajustes" hidden></div>
       <div class="acciones-form">
         <span class="nota" id="guardado-en"></span>

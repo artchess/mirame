@@ -113,6 +113,22 @@ def test_api_elige_quien_hace_todo(monkeypatch):
     assert config.cargar().transcripcion()[0] == config.OPENAI_URL
 
 
+def test_servicio_propio_de_whisper_con_openai_y_api():
+    """En lo automático manda el servicio de Whisper propio; `api` gana y no toma su modelo;
+    sin Groq ni servicio propio, la clave de OpenAI también transcribe."""
+    c = config.guardar({"groq_clave": "gsk_1234567890abcdef", "openai_clave": "sk-1234567890abcdef",
+                        "whisper_url": "https://w/v1/", "whisper_clave": "k", "whisper_modelo": "w"})
+    assert c.transcripcion() == ("https://w/v1", "k", "w")
+    assert c.modelo_lecturas()[0] == config.OPENAI_URL
+    assert "whisper_clave" in config.SECRETOS and "openai_clave" in config.SECRETOS
+    c = config.guardar({"api": "groq"})
+    assert c.transcripcion() == (config.GROQ_URL, "gsk_1234567890abcdef", config.WHISPER_POR_DEFECTO)
+    assert config.guardar({"api": "openai"}).transcripcion() == (config.OPENAI_URL, "sk-1234567890abcdef", config.WHISPER_OPENAI)
+    c = config.guardar({"api": "", "whisper_url": "", "whisper_clave": "", "whisper_modelo": "", "groq_clave": ""})
+    assert c.transcripcion() == (config.OPENAI_URL, "sk-1234567890abcdef", config.WHISPER_OPENAI)
+    assert c.puede_separar_lecturas and c.puede_analizar_estructura
+
+
 def test_api_sin_su_clave_no_usa_otra():
     c = config.guardar({"groq_clave": "gsk_1234567890abcdef", "api": "openai"})
     assert c.transcripcion() is None and c.modelo_estructura() is None
@@ -247,3 +263,43 @@ def test_carpeta_de_rechaza_rutas_raras(malo):
 def test_analisis_sin_resumen_es_incompleto():
     (rutas.analisis() / "2026-03-01_c").mkdir()
     assert biblioteca.listar()[0]["estado"] == "incompleto"
+
+
+# ---------------------------------------------------------------- 0.4.0
+def test_whisper_de_otro_proveedor():
+    from mirame import config
+    c = config.guardar({"whisper_url": "https://api.openai.com/v1/", "whisper_clave": "sk-x", "whisper_modelo": "whisper-1"})
+    assert c.transcripcion() == ("https://api.openai.com/v1", "sk-x", "whisper-1")
+    assert c.puede_transcribir and not c.puede_separar_lecturas      # falta el modelo de análisis
+    c = config.guardar({"llm_url": "https://x/v1", "llm_clave": "k", "llm_modelo": "m"})
+    assert c.puede_separar_lecturas
+
+
+def test_advertencias_antes_de_procesar():
+    from mirame import proceso
+    assert any("dura 1:32:00" in a for a in proceso.advertencias(92 * 60, None, None))
+    assert proceso.advertencias(92 * 60, 10 * 60, 50 * 60) == []
+    assert any("menos de 5 minutos" in a for a in proceso.advertencias(3600, 60, 180))
+
+
+def test_estimacion_crece_con_el_video_y_las_lecturas():
+    from mirame import proceso
+    corto, largo = proceso.estimar(600), proceso.estimar(3600)
+    assert 0 < corto["segundos"] < largo["segundos"]
+    assert proceso.estimar(3600, lecturas=True)["segundos"] > largo["segundos"]
+
+
+def test_avance_general_pondera_las_etapas():
+    from mirame.progreso import Progreso
+
+    class Mudo(Progreso):
+        def _mostrar(self, texto):
+            pass
+
+    p = Mudo()
+    p.plan = ["Obteniendo el video", "Recortando el sermón", "Midiendo la mirada"]
+    p.etapa_nueva("Obteniendo el video")
+    p.etapa_nueva("Recortando el sermón")
+    p.etapa_nueva("Midiendo la mirada")
+    p.fraccion = 0.5
+    assert 0.55 < p.general() < 0.65      # 20 de 85 hechos + la mitad de 65

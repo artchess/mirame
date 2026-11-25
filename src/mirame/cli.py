@@ -136,12 +136,6 @@ def cmd_recalcular(a):
         cambios["umbral_ojos"] = a.umbral_ojos
     if a.solo_cabeza:
         cambios["umbral_ojos"] = None
-    if a.zona_ojos is not None:
-        cambios["zona_ojos"] = a.zona_ojos
-    if a.ojos_arriba is not None:
-        cambios["ojos_arriba"] = a.ojos_arriba
-    if a.ojos_seguidos is not None:
-        cambios["ojos_seguidos"] = a.ojos_seguidos
     print(analisis.texto_resumen(proceso.recalcular(_carpeta(a.carpeta), cambios)))
 
 
@@ -219,7 +213,14 @@ def cmd_instalar_capturas(a):
 
     if not capturar.disponible():
         sys.exit(capturar.INSTALAR)
-    sys.exit(subprocess.call([sys.executable, "-m", "playwright", "install", "chromium"]))
+    sys.exit(subprocess.call([sys.executable, "-m", "playwright", "install", "chromium", "--only-shell"]))
+
+
+def cmd_acceso(a):
+    """Acceso directo en el escritorio para abrir la app con doble clic."""
+    from .herramientas import crear_acceso
+
+    print(f"Acceso directo creado: {crear_acceso()}")
 
 
 # ---------------------------------------------------------------- ver
@@ -329,12 +330,6 @@ def construir() -> argparse.ArgumentParser:
     p.add_argument("--ancho-minimo", type=int)
     p.add_argument("--umbral-ojos", type=float)
     p.add_argument("--solo-cabeza", action="store_true")
-    p.add_argument("--zona-ojos", type=float,
-                   help="grados sobre el corte en que, con los ojos arriba, cuenta como congregación (0 = apagado)")
-    p.add_argument("--ojos-arriba", type=float,
-                   help="puntaje de ojos por debajo del cual mira al frente, dentro de la zona (0.35)")
-    p.add_argument("--ojos-seguidos", type=int,
-                   help="fotogramas seguidos con ojos bajados para contar como 'abajo'; filtra parpadeos (1 = apagado)")
     p.set_defaults(fn=cmd_recalcular)
 
     p = sub.add_parser("lista", help="análisis guardados")
@@ -364,6 +359,9 @@ def construir() -> argparse.ArgumentParser:
 
     p = sub.add_parser("instalar-capturas", help="descargar el navegador que usan las capturas (una vez)")
     p.set_defaults(fn=cmd_instalar_capturas)
+
+    p = sub.add_parser("acceso", help="crear un acceso directo en el escritorio para abrir la app")
+    p.set_defaults(fn=cmd_acceso)
 
     p = sub.add_parser("muestras", help="fotogramas al azar de cada clase, para revisar a ojo")
     p.add_argument("carpeta")

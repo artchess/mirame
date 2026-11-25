@@ -160,3 +160,56 @@ button.texto.rojo:hover { color: var(--rojo); }
   .pie { flex-direction: column; padding: 14px 16px; }
   h1 { font-size: 25px; }
 }
+
+/* ---------- Nuevo análisis: video, tramo y avisos ---------- */
+.hoja.media { max-width: 920px; }
+.oculto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.sugerencia { background: var(--azul-claro); color: #1e3a8a; border-radius: var(--radio); padding: 14px 18px; margin: 0 0 16px; font-size: 15px; }
+.sugerencia a { color: #1d4ed8; font-weight: 600; }
+.paso { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; margin-bottom: 14px; }
+.paso .n { width: 26px; height: 26px; border-radius: 50%; background: var(--texto); color: #fff; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; }
+.cargando { color: var(--suave); font-size: 14px; margin: 4px 0 8px; }
+.cargando::before { content: ""; display: inline-block; width: 12px; height: 12px; border: 2px solid var(--linea); border-top-color: var(--texto); border-radius: 50%; margin-right: 8px; vertical-align: -1px; animation: gira .8s linear infinite; }
+@keyframes gira { to { transform: rotate(360deg); } }
+.video-elegido { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; margin-top: 6px; align-items: start; }
+.vista-previa { position: relative; aspect-ratio: 16 / 9; background: #000; border-radius: 12px; overflow: hidden; }
+.vista-previa iframe, .vista-previa video, .vista-previa img, .vista-previa #yt { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; object-fit: contain; }
+.sin-vista { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(17,20,24,.75); color: #fff; font-size: 13px; padding: 8px 12px; }
+.video-titulo { font-weight: 700; font-size: 17px; line-height: 1.3; margin-bottom: 4px; }
+.video-meta { color: var(--suave); font-size: 14px; margin-bottom: 14px; }
+
+.segmentado { display: inline-flex; background: var(--fondo); border: 1px solid var(--linea); border-radius: 11px; padding: 3px; gap: 3px; }
+.segmentado label { cursor: pointer; }
+.segmentado input { position: absolute; opacity: 0; pointer-events: none; }
+.segmentado span { display: block; padding: 8px 18px; border-radius: 8px; font-weight: 600; font-size: 15px; color: var(--suave); }
+.segmentado input:checked + span { background: #fff; color: var(--texto); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.segmentado input:focus-visible + span { outline: 2px solid var(--azul); }
+
+.rango { position: relative; height: 36px; margin: 22px 4px 8px; }
+.rango-pista { position: absolute; left: 0; right: 0; top: 14px; height: 8px; border-radius: 4px; background: var(--gris-claro); }
+.rango-sel { position: absolute; top: 0; height: 100%; background: var(--verde); border-radius: 4px; }
+.rango input[type=range] { position: absolute; left: 0; right: 0; top: 4px; width: 100%; margin: 0; background: none; pointer-events: none; -webkit-appearance: none; appearance: none; height: 28px; }
+.rango input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; pointer-events: auto; width: 22px; height: 22px; border-radius: 50%; background: #fff; border: 3px solid var(--verde-oscuro); cursor: grab; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+.rango input[type=range]::-moz-range-thumb { pointer-events: auto; width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 3px solid var(--verde-oscuro); cursor: grab; }
+.rango input[type=range]::-webkit-slider-runnable-track { background: none; }
+.fila-tramo { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 6px; }
+.extremo { display: flex; align-items: flex-end; gap: 8px; }
+.extremo .campo { flex: 1; margin-bottom: 0; }
+
+.resumen-envio { font-size: 15px; margin: 18px 0 8px; color: var(--texto); }
+.avisos { list-style: none; padding: 0; margin: 0 0 14px; }
+.avisos li { background: var(--ambar-claro); color: #78350f; border-radius: 10px; padding: 9px 14px; margin-bottom: 8px; font-size: 14px; }
+.avisos li.mal { background: var(--rojo-claro); color: #7f1d1d; }
+
+/* ---------- Avance por etapas ---------- */
+.avance-texto { margin-bottom: 6px; }
+.etapas { list-style: none; padding: 0; margin: 8px 0; display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14px; color: var(--tenue); }
+.etapas li.hecha { color: var(--verde-oscuro); }
+.etapas li.actual { color: var(--texto); font-weight: 600; }
+
+.estado-claves { margin: 18px 0 0; font-size: 14px; color: var(--suave); }
+code { font-size: 13px; background: var(--fondo); padding: 1px 5px; border-radius: 5px; }
+
+@media (max-width: 720px) {
+  .video-elegido, .fila-tramo { grid-template-columns: 1fr; }
+}

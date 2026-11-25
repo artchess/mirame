@@ -20,18 +20,27 @@ Todo corre en modo imagen, sin seguimiento entre fotogramas ni azar: el mismo vi
 
 De la matriz de pose sale el **pitch**, la inclinación de la cabeza hacia arriba o abajo (positivo = abajo). De los blendshapes sale un **puntaje de ojos** entre 0 y 1: el promedio de «mirada hacia abajo» y «párpado caído».
 
-Cada predicador tiene su postura. Mírame toma como «mirando a la congregación» la **mediana del pitch** del sermón y clasifica cada fotograma así:
+Las reglas actuales son el **método 3** (desde la versión 0.4.0; queda anotado en cada `resumen.json`).
+
+**Postura habitual.** Cada predicador tiene la suya. Mírame toma como «mirando a la congregación» la mediana del pitch de los fotogramas en que **los ojos están claramente arriba** (puntaje de ojos < 0,30). Quien lee mucho arrastraría hacia abajo la mediana de todo el sermón; los momentos con los ojos arriba son, casi siempre, momentos de mirar a la gente. Si esos fotogramas son menos del 10 %, se usa la mediana de todos.
+
+Con esa referencia, cada fotograma se clasifica así:
 
 | Clase | Regla |
 |---|---|
-| **abajo** | cabeza más de 15° por debajo de la postura habitual (`--umbral`), **o** puntaje de ojos ≥ 0,45 (`--umbral-ojos`) |
+| **abajo** | la cabeza baja más de 20° respecto de la postura habitual; **o** entre 10° y 20° (la franja dudosa) con los ojos algo bajos (≥ 0,25); **o** los ojos bajados (≥ 0,45) al menos medio segundo seguido, sin la cabeza levantada |
 | **congregación** | hay rostro y no cumple lo anterior |
 | **sin dato** | no se encontró el rostro (otra toma, plano lejano, diapositivas) |
 | **excluido** | tramos que se piden dejar fuera (`--excluir`) y las oraciones marcadas por la IA |
 
-Los ojos importan: hay predicadores que leen el manuscrito casi sin mover la cabeza. En un sermón, el método que solo miraba la cabeza dio 0,7 % abajo; con los ojos, 50 %, y a simple vista el predicador leía buena parte del tiempo.
+Por qué cada parte:
 
-Si la postura habitual no es la mediana (por ejemplo, un sermón leído casi entero), se puede fijar a mano con `--base` o calcular desde un tramo con `--calibrar mm:ss-mm:ss`.
+- **Los ojos importan.** Hay predicadores que leen casi sin mover la cabeza. En un sermón, mirar solo la cabeza dio 0,7 % abajo; con los ojos, 50 %, y a simple vista el predicador leía buena parte del tiempo.
+- **En la franja dudosa deciden los ojos.** Con la cabeza a 15° ± 5° del umbral, la inclinación sola no distingue «cabeza algo baja mirando a la gente» de «leyendo».
+- **Medio segundo seguido.** Un parpadeo dura menos. En las muestras revisadas, la mayoría de los fotogramas sueltos con los ojos cerrados eran parpadeos u ojos entrecerrados al hablar.
+- **Con la cabeza levantada no se lee.** Ojos cerrados con la cabeza más de 8° arriba de lo habitual es un gesto (énfasis, emoción), no lectura.
+
+Si la postura habitual calculada no es la correcta, se puede fijar a mano con `--base` o calcular desde un tramo con `--calibrar mm:ss-mm:ss`.
 
 ## 4. Por segundo, episodios y miradas
 
@@ -39,11 +48,20 @@ Si la postura habitual no es la mediana (por ejemplo, un sermón leído casi ent
 - **Episodio de lectura:** una racha de fotogramas «abajo» de 1 segundo o más. Las de menos de 1 segundo se cuentan aparte como **vistazos** e incluyen parpadeos.
 - **Mirada a la congregación:** el tiempo seguido mirando a la gente. Se corta solo cuando el predicador baja a sus notas 1 segundo o más, o cuando el rostro se pierde 1 segundo o más; los parpadeos y vistazos cortos no la cortan. El reporte da la media, la mediana y la más larga. La media sube por unas pocas miradas muy largas, así que la mediana describe mejor la mirada típica.
 
-## 5. Lectura bíblica y oración (opcional)
+## 5. Margen de error
+
+Un porcentaje solo es útil si se sabe cuánto puede variar. El reporte da dos medidas:
+
+- **Margen de error del 95 %** del porcentaje mirando a la congregación, por *bootstrap* por bloques: se remuestrea el sermón en bloques de 30 segundos (los segundos vecinos se parecen, así que no se remuestrean sueltos) 1000 veces con semilla fija. En sermones de 40 a 60 minutos el margen ronda ±4 a ±6 puntos.
+- **Sensibilidad al umbral:** el mismo porcentaje con el umbral de la cabeza 3° más estricto y 3° más laxo.
+
+Al comparar dos sermones, una diferencia menor que esos márgenes no se puede atribuir al predicador.
+
+## 6. Lectura bíblica y oración (opcional)
 
 Con una clave de IA:
 
-1. El audio del recorte se envía a Whisper (`whisper-large-v3-turbo` en Groq, o `whisper-1` en OpenAI si no hay clave de Groq o si en Ajustes se eligió «Solo OpenAI») en tramos de 20 minutos. Vuelve con el tiempo de cada frase y de cada palabra.
+1. El audio del recorte se envía a Whisper en tramos de 20 minutos: por defecto `whisper-large-v3-turbo` en Groq, o cualquier servicio compatible con OpenAI (por ejemplo `whisper-1` de OpenAI). Vuelve con el tiempo de cada frase y de cada palabra.
    Sobre silencio o música Whisper a veces inventa una frase («Subtítulos realizados por la comunidad de Amara.org») o se queda repitiendo las últimas palabras («y la humanidad, y la humanidad…»), y puede seguir así varios minutos tapando lo que de verdad se dijo. Mírame busca, palabra por palabra, un grupo de hasta 8 palabras repetido al menos cuatro veces seguidas; una repetición retórica («santo, santo, santo») no llega a eso. Cuando lo encuentra vuelve a pedir solo la parte dañada, en pedazos cada vez más cortos (hasta 40 segundos), y descarta las frases inventadas. El daño queda encerrado en el silencio donde empezó y lo demás se recupera.
 2. Whisper a veces junta en una sola frase de 25 segundos el final de una lectura y el comentario que sigue. Por eso las frases largas se parten en pedazos de 8 segundos como máximo, usando el tiempo de cada palabra.
 3. Un modelo de lenguaje recibe la transcripción en ventanas de 8 minutos y marca qué frases son **texto bíblico leído** (en cualquier versión) y cuáles son **oración**. No cuentan el anuncio («abramos en Romanos 11»), la paráfrasis ni el comentario.
@@ -53,7 +71,40 @@ Solo cuenta como oración el momento en que el predicador le habla a Dios: invit
 
 Se compara con un modelo de lenguaje y no con el texto bíblico literal porque los predicadores citan de varias versiones. Las marcas quedan en `lecturas.json`: si algo salió mal, se corrige a mano y se aplica con `mirame lecturas <análisis> --solo-recalcular`. El modelo no responde siempre igual: entre dos corridas pueden cambiar uno o dos tramos y las cifras unas décimas.
 
-## 6. Estructura del sermón (opcional)
+## 7. Validación con muestras
+
+Las reglas del método 3 salieron de revisar a ojo fotogramas de los casos que el método 2 resolvía distinto según la regla:
+
+| Muestra | Qué casos | Método 2 | Método 3 |
+|---|---|---|---|
+| Diseño: 60 fotogramas de 2 sermones | franja dudosa de la cabeza, ojos cerrados sueltos y ojos bajados sostenidos (sin los 11 que caen en oraciones) | 19 de 49 | 32 de 49 |
+| Control: 40 fotogramas de 2 sermones, sacados después de fijar las reglas | franja dudosa de la cabeza (los 33 que se podían juzgar con claridad) | 27 de 33 | 31 de 33 |
+
+Son casos difíciles a propósito, no una muestra al azar del sermón, así que estos porcentajes no son la precisión general. Lo que muestran es que el método 3 se equivoca menos justo donde el anterior fallaba.
+
+## 8. Límites conocidos
+
+- **Parpadeos largos y ojos entrecerrados** todavía pueden contarse como mirar abajo cuando duran más de medio segundo. Algunos predicadores cierran mucho los ojos al hablar.
+- **Sin rostro, sin medida.** Si la transmisión muestra la congregación, diapositivas o el texto en pantalla, esos segundos quedan «sin dato». Pasado el 30 %, el reporte avisa que el resultado es poco confiable.
+- **Mirar abajo no siempre es leer.** Bajar la vista para pensar, mirar a la primera fila o a un niño cuenta igual. La herramienta mide la dirección de la mirada, no la intención.
+- **La cámara cuenta.** Una cámara muy alta o muy baja cambia el ángulo aparente. Como la referencia es la postura habitual de cada sermón, comparar sermones grabados con cámaras distintas es razonable; comparar la cifra exacta con otra herramienta, no.
+- **Falta validar con un etiquetado completo y al azar.** La validación de arriba es de casos difíciles. El comando `mirame validar` compara el resultado con un CSV etiquetado a mano (`t,clase` por segundo, o `inicio,fin,clase` por tramos; clase `c`, `a` o `s`). El objetivo es al menos 90 % de coincidencia. Si haces esa validación con tus sermones, compartir el resultado ayuda a todos.
+
+## 9. Qué hay en cada archivo
+
+| Archivo | Contenido |
+|---|---|
+| `fotogramas.csv` | Por fotograma: tiempo, rostro, pitch, yaw, roll, caja del rostro, puntajes de ojos y clase |
+| `segundos.csv` | Por segundo: clase, pitch medio, ojos, fotogramas válidos y si cae en una lectura bíblica |
+| `resumen.json` | Parámetros usados, porcentajes, episodios, miradas, lecturas y advertencias |
+| `transcripcion.json` | Frases con inicio y fin (si se usó IA) |
+| `lecturas.json` | Tramos de lectura bíblica (con referencia) y de oración (si se usó IA) |
+| `estructura.json` | Estructura y contenido del sermón: partes, argumento, clímax, evangelio, aplicaciones y pasajes, con sus tiempos (si se usó IA) |
+| `estructura.md` | Lo mismo, como texto |
+
+Con `mirame recalcular` se reclasifica desde `fotogramas.csv` con otros umbrales sin volver a procesar el video.
+
+## 10. Estructura del sermón (opcional)
 
 Con una clave de IA, `mirame estructura` (o el botón «Analizar estructura» de la app) toma la misma transcripción y hace tres tipos de consulta a un modelo de lenguaje:
 
@@ -75,9 +126,9 @@ Conviene leerlo como la opinión de un oyente atento, no como un veredicto:
 - Si el recorte no cubre el sermón entero, la estructura describe solo lo que quedó dentro.
 - El modelo importa. Al comparar el mismo sermón, los modelos de OpenAI dieron un análisis más completo que el de Groq, que dividió el sermón en menos partes y no registró aplicaciones: ver [costos-groq.md](costos-groq.md).
 
-## 7. Cuánto cuesta la IA
+## 11. Cuánto cuesta la IA
 
-Medir la mirada (secciones 1 a 4) no cuesta nada: corre en tu computadora. Las secciones 5 y 6 usan servicios de IA, y el costo depende de la clave:
+Medir la mirada (secciones 1 a 5) no cuesta nada: corre en tu computadora. Las secciones 6 y 10 usan servicios de IA, y el costo depende de la clave:
 
 - Con **Groq** hay una capa gratuita, con un límite de tokens por minuto. En el mismo sermón del ejemplo de abajo transcribió y marcó las lecturas sin cobrar nada, pero la estructura no cupo en el límite. Con el plan de pago de Groq el análisis completo costó unos 4,5 centavos de dólar, pero la pestaña «Sermón» salió mejor con los modelos de OpenAI: ver [costos-groq.md](costos-groq.md).
 - Con **OpenAI** se paga por uso: por minuto de audio al transcribir y por tokens al analizar el texto.
@@ -86,32 +137,10 @@ Como ejemplo, un sermón de 35:36 con solo la clave de OpenAI y los modelos por 
 
 | Paso | Modelo | Consultas | Costo (USD) |
 |---|---|---|---|
-| Transcripción (sección 5) | `whisper-1` | 2 | 0,21 |
-| Lecturas y oración (sección 5) | `gpt-5.4` | 5 | 0,04 |
-| Estructura del sermón (sección 6) | `gpt-5.5` | 7 | 0,73 |
+| Transcripción (sección 6) | `whisper-1` | 2 | 0,21 |
+| Lecturas y oración (sección 6) | `gpt-5.4` | 5 | 0,04 |
+| Estructura del sermón (sección 10) | `gpt-5.5` | 7 | 0,73 |
 
 Tres cuartas partes del costo son la estructura del sermón, y dentro de ella lo más caro es buscar los pasajes citados: el modelo razona mucho en cada ventana de 8 minutos. Casi todo crece con los minutos del recorte, así que recortar solo la predicación también ahorra.
 
 Es un ejemplo, no una tarifa: los precios cambian y el modelo no gasta lo mismo en cada corrida. El desglose por consulta, cómo estimar otro sermón y cómo gastar menos están en [costos-openai.md](costos-openai.md).
-
-## 8. Límites conocidos
-
-- **Parpadeos largos y ojos entrecerrados** pueden contarse como mirar abajo. El umbral de ojos (0,45) se eligió revisando muestras a ojo, no con un etiquetado sistemático.
-- **Sin rostro, sin medida.** Si la transmisión muestra la congregación, diapositivas o el texto en pantalla, esos segundos quedan «sin dato». Pasado el 30 %, el reporte avisa que el resultado es poco confiable.
-- **Mirar abajo no siempre es leer.** Bajar la vista para pensar, mirar a la primera fila o a un niño cuenta igual. La herramienta mide la dirección de la mirada, no la intención.
-- **La cámara cuenta.** Una cámara muy alta o muy baja cambia el ángulo aparente. Como la referencia es la postura habitual de cada sermón, comparar sermones grabados con cámaras distintas es razonable; comparar la cifra exacta con otra herramienta, no.
-- **Falta validar contra un etiquetado humano.** El comando `mirame validar` compara el resultado con un CSV etiquetado a mano (`t,clase` por segundo, o `inicio,fin,clase` por tramos; clase `c`, `a` o `s`). El objetivo es al menos 90 % de coincidencia. Si haces esa validación con tus sermones, compartir el resultado ayuda a todos.
-
-## 9. Qué hay en cada archivo
-
-| Archivo | Contenido |
-|---|---|
-| `fotogramas.csv` | Por fotograma: tiempo, rostro, pitch, yaw, roll, caja del rostro, puntajes de ojos y clase |
-| `segundos.csv` | Por segundo: clase, pitch medio, ojos, fotogramas válidos y si cae en una lectura bíblica |
-| `resumen.json` | Parámetros usados, porcentajes, episodios, miradas, lecturas y advertencias |
-| `transcripcion.json` | Frases con inicio y fin (si se usó IA) |
-| `lecturas.json` | Tramos de lectura bíblica (con referencia) y de oración (si se usó IA) |
-| `estructura.json` | Estructura y contenido del sermón: partes, argumento, clímax, evangelio, aplicaciones y pasajes, con sus tiempos (si se usó IA) |
-| `estructura.md` | Lo mismo, como texto |
-
-Con `mirame recalcular` se reclasifica desde `fotogramas.csv` con otros umbrales sin volver a procesar el video.

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 import subprocess
 from dataclasses import dataclass
@@ -11,6 +10,7 @@ from pathlib import Path
 import numpy as np
 
 from . import rutas
+from .herramientas import ffmpeg, sondear
 from .progreso import Progreso
 
 YOUTUBE_RE = re.compile(r"(youtube\.com|youtu\.be)", re.I)
@@ -59,6 +59,7 @@ def obtener(origen: str, progreso: Progreso | None = None) -> Fuente:
         "no_warnings": True,
         "noprogress": True,
         "progress_hooks": [gancho],
+        "ffmpeg_location": ffmpeg(),  # para unir video y audio
     }
     with yt_dlp.YoutubeDL(opciones) as ydl:
         info = ydl.extract_info(origen, download=False)
@@ -71,31 +72,47 @@ def obtener(origen: str, progreso: Progreso | None = None) -> Fuente:
     return Fuente(origen=origen, archivo=destino, id=info["id"], titulo=info.get("title") or info["id"])
 
 
+def info(origen: str) -> dict:
+    """Título, duración y miniatura sin descargar el video (para elegir el tramo)."""
+    if not es_url(origen):
+        ruta = Path(origen).expanduser()
+        if not ruta.exists():
+            raise FileNotFoundError(f"No existe el archivo: {ruta}")
+        return {"titulo": ruta.stem, "duracion": duracion(ruta), "youtube_id": None, "miniatura": None, "canal": None}
+    import yt_dlp
+
+    with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True, "skip_download": True}) as ydl:
+        d = ydl.extract_info(origen, download=False)
+    return {
+        "titulo": d.get("title") or d.get("id"),
+        "duracion": float(d.get("duration") or 0) or None,
+        "youtube_id": d.get("id") if d.get("extractor_key") == "Youtube" else None,
+        "miniatura": d.get("thumbnail"),
+        "canal": d.get("channel") or d.get("uploader"),
+        "descargado": (rutas.descargas() / f"{d.get('id')}.mp4").exists(),
+    }
+
+
 def _slug(texto: str) -> str:
     return re.sub(r"[^A-Za-z0-9_-]+", "-", texto).strip("-")[:60] or "video"
 
 
 def duracion(archivo: Path) -> float:
-    salida = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", str(archivo)],
-        capture_output=True, text=True, check=True,
-    ).stdout
-    return float(json.loads(salida)["format"]["duration"])
+    return sondear(archivo)["duracion"]
 
 
 def dimensiones(archivo: Path) -> tuple[int, int]:
-    salida = subprocess.run(
-        ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
-         "stream=width,height", "-of", "json", str(archivo)],
-        capture_output=True, text=True, check=True,
-    ).stdout
-    s = json.loads(salida)["streams"][0]
-    return int(s["width"]), int(s["height"])
+    datos = sondear(archivo)
+    if datos["ancho"] is None:
+        raise RuntimeError(f"{archivo.name} no tiene imagen de video.")
+    return datos["ancho"], datos["alto"]
 
 
-def recortar(archivo: Path, destino: Path, inicio: float | None, fin: float | None) -> None:
+def recortar(archivo: Path, destino: Path, inicio: float | None, fin: float | None,
+             progreso: Progreso | None = None) -> None:
     """Corte exacto (recodifica) a H.264 de máximo 720 de alto, con audio AAC."""
-    cmd = ["ffmpeg", "-v", "error", "-y"]
+    total = (fin if fin is not None else duracion(archivo)) - (inicio or 0)
+    cmd = [ffmpeg(), "-v", "error", "-y", "-nostats", "-progress", "pipe:1"]
     if inicio:
         cmd += ["-ss", f"{inicio:.3f}"]
     cmd += ["-i", str(archivo)]
@@ -109,14 +126,31 @@ def recortar(archivo: Path, destino: Path, inicio: float | None, fin: float | No
         "-movflags", "+faststart",
         str(destino),
     ]
-    subprocess.run(cmd, check=True)
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    try:
+        for linea in proc.stdout:
+            if progreso and linea.startswith("out_time_us=") and total > 0:
+                try:
+                    hecho = min(int(linea.split("=", 1)[1]) / 1e6 / total, 1.0)
+                except ValueError:
+                    continue
+                progreso.fraccion = hecho
+                progreso.mensaje = f"Recortando… {hecho * 100:.0f} %"
+                progreso.revisar()
+    except BaseException:
+        proc.kill()
+        raise
+    finally:
+        proc.wait()
+    if proc.returncode:
+        raise RuntimeError(f"ffmpeg no pudo recortar el video: {proc.stderr.read()[-400:]}")
 
 
 def fotogramas(archivo: Path, fps: float):
     """Genera (indice, t, imagen RGB) a `fps` fotogramas por segundo. t = indice / fps."""
     ancho, alto = dimensiones(archivo)
     cmd = [
-        "ffmpeg", "-v", "error", "-i", str(archivo),
+        ffmpeg(), "-v", "error", "-i", str(archivo),
         "-vf", f"fps={fps}", "-f", "rawvideo", "-pix_fmt", "rgb24", "-",
     ]
     tam = ancho * alto * 3
@@ -138,7 +172,7 @@ def fotogramas(archivo: Path, fps: float):
 def fotograma_en(archivo: Path, t: float, destino: Path) -> None:
     """Guarda como JPEG el fotograma del segundo t (corte exacto)."""
     subprocess.run(
-        ["ffmpeg", "-v", "error", "-y", "-ss", f"{t:.3f}", "-i", str(archivo),
+        [ffmpeg(), "-v", "error", "-y", "-ss", f"{t:.3f}", "-i", str(archivo),
          "-frames:v", "1", "-q:v", "2", str(destino)],
         check=True,
     )
