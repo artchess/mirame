@@ -65,7 +65,13 @@ INSTRUCCIONES_ESTRUCTURA = """Eres un profesor de homilética que evalúa la est
   "clara": true o false,
   "explicacion": "dos o tres frases: ¿podría un oyente seguir el orden del sermón y recordarlo después? ¿por qué?",
   "anuncia_puntos": true o false,
-  "como_los_anuncia": "cómo anunció o enumeró sus puntos, con sus palabras; «» si no lo hizo"
+  "como_los_anuncia": "una o dos frases: cómo anunció los puntos del sermón; si solo enumeró una lista dentro de un punto, dilo; «» si no enumeró nada",
+  "anuncios": [
+   {"desde": id de la frase donde lo dice,
+    "cita": "las palabras literales con que lo anuncia o lo enumera",
+    "anuncia": "qué anuncia: el título de esa parte o de ese subpunto",
+    "es_punto": true o false}
+  ]
  },
  "introduccion": {
   "hay": true o false,
@@ -111,8 +117,16 @@ cada división principal del cuerpo del sermón. Un sermón sin divisiones recon
 partes (introducción, desarrollo como «otro», conclusión): no fabriques puntos.
 - «anunciado» es true solo si el predicador nombró o enumeró esa parte en voz alta \
 («lo primero que vemos…», «mi segundo punto…», «en tercer lugar…»).
-- «anuncia_puntos» es true solo si los oyentes escucharon los puntos dichos como tales. Si las \
-divisiones existen pero hay que deducirlas, es false.
+- «anuncios»: cada momento en que el predicador nombra o enumera una división en voz alta \
+(«hoy veremos tres cosas», «lo primero…», «número dos…», «mi tercer punto…»), en orden y con la \
+frase donde lo dice. «es_punto» es true si lo que anuncia es una división principal del sermón: \
+una de las «partes» de tipo «punto», o el bosquejo completo. Es false si es una lista dentro \
+de una parte (tres razones, tres tácticas, tres preguntas): eso es un detalle de ese punto, no \
+un punto del sermón, y va además en «subpuntos». Lista vacía si no enumeró nada.
+- «anuncia_puntos» es true solo si los oyentes escucharon los puntos principales del sermón \
+dichos como tales: tiene que haber al menos un anuncio con «es_punto» true. Enumerar una lista \
+dentro de un punto no es anunciar los puntos del sermón. Si las divisiones existen pero hay que \
+deducirlas, es false.
 - «estructura.clara» puede ser true aunque no anuncie puntos (por ejemplo, si sigue el texto \
 versículo a versículo con transiciones evidentes) y false aunque los anuncie (si los puntos \
 se mezclan o no se desarrollan).
@@ -375,8 +389,17 @@ def normalizar(estructura: dict, evangelio: dict, pasajes: list[dict], frases: l
 
     # ---- estructura
     e = _dic(estructura.get("estructura"))
+    anuncios = []
+    for an in _lista(e.get("anuncios")):
+        f = _frase(frases, an.get("desde"))
+        if f is not None and (_txt(an.get("cita")) or _txt(an.get("anuncia"))):
+            anuncios.append({**_momento(f), "cita": _txt(an.get("cita"), 400), "anuncia": _txt(an.get("anuncia"), 200),
+                             "es_punto": _si(an.get("es_punto"))})
+    anuncios.sort(key=lambda x: x["inicio"])
+    # El veredicto sale de las señales: enumerar una lista dentro de un punto no es anunciar los puntos.
+    anuncia = _si(e.get("anuncia_puntos")) and (not anuncios or any(x["es_punto"] for x in anuncios))
     forma = {"clara": _si(e.get("clara")), "explicacion": _txt(e.get("explicacion")),
-             "anuncia_puntos": _si(e.get("anuncia_puntos")), "como_los_anuncia": _txt(e.get("como_los_anuncia"))}
+             "anuncia_puntos": anuncia, "como_los_anuncia": _txt(e.get("como_los_anuncia")), "anuncios": anuncios}
 
     # ---- argumento y clímax
     a = _dic(estructura.get("argumento"))
@@ -479,6 +502,10 @@ def texto(e: dict, titulo: str = "") -> str:
                f"- **¿Estructura clara?** {si_no(forma['clara'])}." + (f" {forma['explicacion']}" if forma["explicacion"] else ""),
                f"- **¿Anunció sus puntos?** {si_no(forma['anuncia_puntos'])}."
                + (f" {forma['como_los_anuncia']}" if forma["como_los_anuncia"] else "")]
+    for an in forma.get("anuncios", []):     # los análisis anteriores no traen las señales
+        lineas.append(f"  - {an['minuto']} · " + (f"«{an['cita']}»" if an["cita"] else "")
+                      + (f" → {an['anuncia']}" if an["anuncia"] else "")
+                      + ("" if an["es_punto"] else " *(lista dentro de un punto)*"))
     intro = e.get("introduccion")       # los análisis anteriores a esta pregunta no la traen
     if intro:
         if intro["hay"]:

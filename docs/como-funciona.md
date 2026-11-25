@@ -57,9 +57,11 @@ Se compara con un modelo de lenguaje y no con el texto bíblico literal porque l
 
 Con una clave de IA, `mirame estructura` (o el botón «Analizar estructura» de la app) toma la misma transcripción y hace tres tipos de consulta a un modelo de lenguaje:
 
-1. **Estructura, argumento y clímax**, con el sermón completo: el tema, las partes y la frase en que el predicador hace la transición a cada una, si la estructura es clara, si anunció sus puntos en voz alta, si la introducción (vaya antes o después de la oración inicial) prepara el argumento principal o habla de otra cosa, los pasos del argumento y el clímax.
+1. **Estructura, argumento y clímax**, con el sermón completo: el tema, las partes y la frase en que el predicador hace la transición a cada una, si la estructura es clara, si anunció sus puntos en voz alta (con el minuto y las palabras de cada anuncio), si la introducción (vaya antes o después de la oración inicial) prepara el argumento principal o habla de otra cosa, los pasos del argumento y el clímax.
 2. **Evangelio y aplicaciones**, con el sermón completo: cada momento en que habla de la persona o la obra de Cristo, con el aspecto que toca (encarnación, vida, muerte, resurrección, ascensión, reinado, segunda venida…), y cada llamado concreto a los oyentes, con la parte del pasaje en que se apoya. Las menciones de paso («en el nombre de Jesús» al orar) no cuentan.
 3. **Pasajes citados**, en ventanas de 8 minutos para no dejar ninguno: cada referencia y si fue leída, citada de memoria, mencionada o aludida. La misma referencia repetida en menos de 45 segundos cuenta una vez.
+
+«Anunció sus puntos» se refiere a los puntos principales del sermón. Una lista dentro de un punto («fueron tres cosas…», «número dos…») se muestra con su minuto, marcada como «lista dentro de un punto», pero no cuenta como anunciar los puntos.
 
 El modelo no da minutos: señala el **número de frase** de la transcripción, y el tiempo sale de ahí. Así un minuto del reporte siempre corresponde a algo que se dijo, aunque el modelo se equivoque al interpretarlo. Lo que apunta a una frase que no existe se descarta.
 
