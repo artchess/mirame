@@ -79,7 +79,7 @@ El resultado queda en `estructura.json` (lo que muestra la pestaña «Sermón»;
 
 Conviene leerlo como la opinión de un oyente atento, no como un veredicto. Es el juicio de un modelo de lenguaje sobre una transcripción automática: no oye el tono ni las pausas, puede dividir el sermón distinto a como lo pensó el predicador, y dos corridas pueden mover una transición una o dos frases.
 
-El detalle del método, sus límites y cómo validarlo están en [docs/como-funciona.md](docs/como-funciona.md).
+El detalle del método, sus límites y cómo validarlo están en [docs/como-funciona.md](docs/como-funciona.md). Un ejemplo de lo que cuesta la IA con OpenAI está en [docs/costos-openai.md](docs/costos-openai.md).
 
 **Tu video no sale de tu computadora.** Todo el análisis de imagen es local. Si activas la IA, lo único que se envía es el audio (al servicio de transcripción) y el texto transcrito (al modelo que marca las lecturas y analiza la estructura).
 
@@ -192,10 +192,12 @@ Sin claves, Mírame mide la mirada igual. Con una clave transcribe el sermón y,
 
 Basta **una** clave, y se pega en **Ajustes**:
 
-- **Groq**, que es gratis: créala en [console.groq.com/keys](https://console.groq.com/keys). Transcribe con Whisper y analiza el texto con `openai/gpt-oss-120b`. En la capa gratuita, un sermón largo puede pasar el límite de texto por minuto al analizar la estructura.
-- **OpenAI**, que es de pago (unos centavos de dólar por sermón): créala en [platform.openai.com/api-keys](https://platform.openai.com/api-keys). Transcribe con `whisper-1`, marca las lecturas con `gpt-5.4` y analiza la estructura con `gpt-5.5`.
+- **Groq**, que es gratis: créala en [console.groq.com/keys](https://console.groq.com/keys). Transcribe con Whisper y analiza el texto con `openai/gpt-oss-120b`. La capa gratuita tiene un límite de 8000 tokens por minuto: en un sermón de 35 minutos alcanzó para transcribir y marcar las lecturas, pero no para analizar la estructura. Con el plan de pago de Groq, el análisis completo de ese sermón costó unos 4,5 centavos de dólar (ver [docs/costos-groq.md](docs/costos-groq.md)).
+- **OpenAI**, que es de pago: créala en [platform.openai.com/api-keys](https://platform.openai.com/api-keys). Transcribe con `whisper-1`, marca las lecturas con `gpt-5.4` y analiza la estructura con `gpt-5.5`.
 
-Si pones las dos, Groq transcribe y OpenAI analiza el texto. Para que una sola haga todo, elige **Solo OpenAI** o **Solo Groq** en Ajustes, en «Qué API usar». Es el campo `api` de `configuracion.json`: `"openai"`, `"groq"` o vacío para lo automático.
+Si pones las dos, Groq transcribe y OpenAI analiza el texto. La pestaña «Sermón» sale mejor con los modelos de OpenAI: al comparar el mismo sermón, el modelo de Groq lo dividió en menos partes y no registró aplicaciones (ver [docs/costos-groq.md](docs/costos-groq.md)). Para que una sola haga todo, elige **Solo OpenAI** o **Solo Groq** en Ajustes, en «Qué API usar». Es el campo `api` de `configuracion.json`: `"openai"`, `"groq"` o vacío para lo automático.
+
+**Cuánto cuesta con OpenAI.** Como ejemplo, un sermón de 35 minutos con todo activado costó 0,98 USD en noviembre de 2026: 0,21 la transcripción, 0,04 marcar las lecturas y la oración, y 0,73 la estructura del sermón. Casi todo crece con los minutos, así que recortar solo la predicación también ahorra. El desglose y cómo gastar menos están en [docs/costos-openai.md](docs/costos-openai.md), y la comparación con Groq en [docs/costos-groq.md](docs/costos-groq.md).
 
 Si prefieres otro modelo de lenguaje, en Ajustes elige **Otro proveedor compatible con OpenAI** y escribe la URL base, la clave y el modelo. Sirve cualquier API con el formato de OpenAI: OpenRouter, Azure, DeepSeek, un LiteLLM propio u Ollama en tu máquina. Para la estructura conviene un modelo capaz, que pueda leer el sermón completo de una vez. La transcripción sigue usando Groq u OpenAI.
 
