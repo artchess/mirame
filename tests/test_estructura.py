@@ -180,3 +180,40 @@ def test_el_modelo_sin_temperatura_se_reintenta(monkeypatch):
     monkeypatch.setattr(lecturas, "_pedir", falso_pedir)
     assert lecturas.consultar_json("u", "k", "m", "instrucciones", "texto") == {"ok": 1}
     assert len(cuerpos) == 2 and "temperature" not in cuerpos[1]
+
+
+def test_a_groq_se_le_pide_una_respuesta_larga(monkeypatch):
+    """Groq corta la respuesta si no se le pide más y el JSON llega vacío: solo a Groq se
+    le manda `max_completion_tokens`, y si el modelo lo rechaza se repite sin él."""
+    cuerpos = []
+
+    def falso_pedir(url, llave, cuerpo, tipo, progreso=None):
+        cuerpos.append(json.loads(cuerpo))
+        return {"choices": [{"message": {"content": "{\"ok\": 1}"}}]}
+
+    monkeypatch.setattr(lecturas, "_pedir", falso_pedir)
+    lecturas.consultar_json(config.GROQ_URL, "k", "m", "instrucciones", "texto")
+    lecturas.consultar_json(config.OPENAI_URL, "k", "m", "instrucciones", "texto")
+    assert cuerpos[0]["max_completion_tokens"] == lecturas.SALIDA_GROQ
+    assert "max_completion_tokens" not in cuerpos[1]
+
+    def lo_rechaza(url, llave, cuerpo, tipo, progreso=None):
+        cuerpos.append(json.loads(cuerpo))
+        if "max_completion_tokens" in cuerpos[-1]:
+            raise RuntimeError("HTTP 400 de x: `max_completion_tokens` must be less than or equal to `8192`")
+        return {"choices": [{"message": {"content": "{\"ok\": 1}"}}]}
+
+    cuerpos.clear()
+    monkeypatch.setattr(lecturas, "_pedir", lo_rechaza)
+    assert lecturas.consultar_json(config.GROQ_URL, "k", "m", "instrucciones", "texto") == {"ok": 1}
+    assert len(cuerpos) == 2 and "max_completion_tokens" not in cuerpos[1] and cuerpos[1]["temperature"] == 0
+
+    def demasiado_grande(url, llave, cuerpo, tipo, progreso=None):
+        cuerpos.append(json.loads(cuerpo))
+        raise RuntimeError("HTTP 413 de x: Request too large for model on tokens per minute (TPM)")
+
+    cuerpos.clear()
+    monkeypatch.setattr(lecturas, "_pedir", demasiado_grande)
+    with pytest.raises(RuntimeError, match="413"):      # se repite una vez sin el máximo, y si sigue sin caber, falla
+        lecturas.consultar_json(config.GROQ_URL, "k", "m", "instrucciones", "texto")
+    assert len(cuerpos) == 2 and "max_completion_tokens" not in cuerpos[1]
