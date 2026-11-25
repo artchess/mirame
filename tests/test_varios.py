@@ -88,6 +88,38 @@ def test_solo_groq_tambien_analiza_la_estructura():
     assert c.modelo_estructura() == (config.GROQ_URL, "gsk_1234567890abcdef", config.LLM_POR_DEFECTO)
 
 
+def test_api_elige_quien_hace_todo(monkeypatch):
+    """Con las dos claves, `api` manda: "openai" o "groq" hacen todo; vacío es lo automático."""
+    c = config.guardar({"groq_clave": "gsk_1234567890abcdef", "openai_clave": "sk-1234567890abcdef", "api": "OpenAI"})
+    assert c.api == "openai"
+    assert c.transcripcion() == (config.OPENAI_URL, "sk-1234567890abcdef", config.WHISPER_OPENAI)
+    assert c.modelo_lecturas()[0] == c.modelo_estructura()[0] == config.OPENAI_URL
+    c = config.guardar({"api": "groq"})
+    assert c.transcripcion()[0] == config.GROQ_URL
+    assert c.modelo_lecturas() == c.modelo_estructura() == (config.GROQ_URL, "gsk_1234567890abcdef", config.LLM_POR_DEFECTO)
+    assert c.publica()["en_uso"]["estructura"] == f"Groq · {config.LLM_POR_DEFECTO}"
+    assert "1234567890" not in json.dumps(c.publica())
+
+    # Gana también al proveedor propio, y no toma su modelo.
+    c = config.guardar({"llm_url": "https://x/v1", "llm_clave": "k", "llm_modelo": "m"})
+    assert c.modelo_estructura() == (config.GROQ_URL, "gsk_1234567890abcdef", config.LLM_POR_DEFECTO)
+    c = config.guardar({"api": ""})
+    assert c.modelo_estructura() == ("https://x/v1", "k", "m")
+    assert c.transcripcion()[0] == config.GROQ_URL
+
+    # Un valor desconocido es lo automático; el entorno tiene prioridad.
+    assert config.guardar({"api": "otra"}).api == ""
+    monkeypatch.setenv("MIRAME_API", "openai")
+    assert config.cargar().transcripcion()[0] == config.OPENAI_URL
+
+
+def test_api_sin_su_clave_no_usa_otra():
+    c = config.guardar({"groq_clave": "gsk_1234567890abcdef", "api": "openai"})
+    assert c.transcripcion() is None and c.modelo_estructura() is None
+    assert not c.puede_separar_lecturas and not c.puede_analizar_estructura
+    assert c.publica()["en_uso"] == {"transcripcion": "", "lecturas": "", "estructura": ""}
+
+
 # ---------------------------------------------------------------- transcripción
 def test_whisper_en_bucle_y_frases_inventadas():
     amara = {"texto": "Subtítulos realizados por la comunidad de Amara.org"}

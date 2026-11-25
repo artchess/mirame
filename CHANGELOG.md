@@ -6,6 +6,7 @@
 - **Clave de OpenAI** como alternativa o complemento a la de Groq: transcribe con `whisper-1` y analiza el texto con los modelos de OpenAI.
 - La transcripción detecta cuando Whisper se queda repitiendo una frase o unas palabras sobre silencio o música, vuelve a pedir solo esa parte en pedazos más cortos y descarta las frases inventadas.
 - Lecturas y oración: instrucciones más estrictas sobre qué es una oración, y un aviso en el reporte si más del 15 % del sermón quedó excluido por estar marcado como oración.
+- **Qué API usar** (Ajustes, campo `api` de la configuración o `MIRAME_API`): «Solo OpenAI» o «Solo Groq» hacen la transcripción y el análisis con esa API aunque haya otras claves. Sin elegir, sigue lo automático: Groq transcribe y OpenAI analiza. Ajustes muestra quién hace cada paso.
 - Con Groq, las consultas al modelo de lenguaje piden una respuesta más larga (hasta 16 000 tokens). Antes Groq la cortaba en unos 3000, razonamiento incluido, y la estructura del sermón fallaba con un error 400 (`json_validate_failed`).
 - `mirame recalcular`: `--ojos-seguidos` (filtra parpadeos) y `--zona-ojos` / `--ojos-arriba` (cabeza apenas inclinada con los ojos arriba cuenta como congregación).
 

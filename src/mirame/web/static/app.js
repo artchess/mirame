@@ -303,6 +303,11 @@ async function verAjustes() {
   const otro = !!aj.llm_url;
   f.proveedor.value = otro ? "otro" : "groq";
   $("#otro-proveedor").hidden = !otro;
+  f.api.value = aj.api || "";
+  const u = aj.en_uso || {};
+  $("#en-uso").textContent = u.transcripcion
+    ? `Ahora transcribe con ${u.transcripcion}; marca las lecturas con ${u.lecturas || "(falta configurar)"}; analiza la estructura con ${u.estructura || "(falta configurar)"}.`
+    : (aj.api ? "Falta la clave de la API elegida: sin ella no se usa la IA." : "");
   if (aj.desde_entorno?.length) {
     $("#guardado-en").textContent = `Algunos valores vienen de variables de entorno y tienen prioridad: ${aj.desde_entorno.join(", ")}.`;
   } else {
@@ -343,8 +348,14 @@ async function verAjustes() {
       mostrarError("error-ajustes", "Para otro proveedor completa la URL, la clave y el modelo.");
       return;
     }
+    const elegida = f.api.value;
+    if (elegida && !f[`${elegida}_clave`].value) {
+      mostrarError("error-ajustes", `Para usar solo ${elegida === "groq" ? "Groq" : "OpenAI"} escribe su clave.`);
+      return;
+    }
     try {
       await api("ajustes", { method: "POST", body: {
+        api: elegida,
         groq_clave: f.groq_clave.value,
         openai_clave: f.openai_clave.value,
         llm_url: otro ? f.llm_url.value : "",

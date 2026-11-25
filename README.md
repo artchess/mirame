@@ -195,7 +195,7 @@ Basta **una** clave, y se pega en **Ajustes**:
 - **Groq**, que es gratis: créala en [console.groq.com/keys](https://console.groq.com/keys). Transcribe con Whisper y analiza el texto con `openai/gpt-oss-120b`. En la capa gratuita, un sermón largo puede pasar el límite de texto por minuto al analizar la estructura.
 - **OpenAI**, que es de pago (unos centavos de dólar por sermón): créala en [platform.openai.com/api-keys](https://platform.openai.com/api-keys). Transcribe con `whisper-1`, marca las lecturas con `gpt-5.4` y analiza la estructura con `gpt-5.5`.
 
-Si pones las dos, Groq transcribe y OpenAI analiza el texto.
+Si pones las dos, Groq transcribe y OpenAI analiza el texto. Para que una sola haga todo, elige **Solo OpenAI** o **Solo Groq** en Ajustes, en «Qué API usar». Es el campo `api` de `configuracion.json`: `"openai"`, `"groq"` o vacío para lo automático.
 
 Si prefieres otro modelo de lenguaje, en Ajustes elige **Otro proveedor compatible con OpenAI** y escribe la URL base, la clave y el modelo. Sirve cualquier API con el formato de OpenAI: OpenRouter, Azure, DeepSeek, un LiteLLM propio u Ollama en tu máquina. Para la estructura conviene un modelo capaz, que pueda leer el sermón completo de una vez. La transcripción sigue usando Groq u OpenAI.
 
@@ -206,6 +206,7 @@ Las claves se guardan en `~/Mirame/configuracion.json`, con permisos de lectura 
 | `GROQ_API_KEY` | Transcripción y, si no hay otro, el modelo de lenguaje |
 | `OPENAI_API_KEY` | Modelo de lenguaje y, si no hay clave de Groq, la transcripción |
 | `MIRAME_OPENAI_MODELO` | Otro modelo de OpenAI para las lecturas y la estructura |
+| `MIRAME_API` | `groq` u `openai`: usar solo esa API para transcribir y analizar, aunque haya otras claves. Vacío = automático |
 | `MIRAME_LLM_URL`, `MIRAME_LLM_KEY`, `MIRAME_LLM_MODELO` | Otro modelo compatible con OpenAI para las lecturas y la estructura (URL terminada en `/v1`) |
 | `MIRAME_WHISPER_MODELO` | Otro modelo de Whisper en Groq (por defecto `whisper-large-v3-turbo`) |
 | `MIRAME_DATOS` | Otra carpeta de datos en lugar de `~/Mirame` |

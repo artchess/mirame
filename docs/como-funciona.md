@@ -43,7 +43,7 @@ Si la postura habitual no es la mediana (por ejemplo, un sermón leído casi ent
 
 Con una clave de IA:
 
-1. El audio del recorte se envía a Whisper (`whisper-large-v3-turbo` en Groq, o `whisper-1` en OpenAI si no hay clave de Groq) en tramos de 20 minutos. Vuelve con el tiempo de cada frase y de cada palabra.
+1. El audio del recorte se envía a Whisper (`whisper-large-v3-turbo` en Groq, o `whisper-1` en OpenAI si no hay clave de Groq o si en Ajustes se eligió «Solo OpenAI») en tramos de 20 minutos. Vuelve con el tiempo de cada frase y de cada palabra.
    Sobre silencio o música Whisper a veces inventa una frase («Subtítulos realizados por la comunidad de Amara.org») o se queda repitiendo las últimas palabras («y la humanidad, y la humanidad…»), y puede seguir así varios minutos tapando lo que de verdad se dijo. Mírame busca, palabra por palabra, un grupo de hasta 8 palabras repetido al menos cuatro veces seguidas; una repetición retórica («santo, santo, santo») no llega a eso. Cuando lo encuentra vuelve a pedir solo la parte dañada, en pedazos cada vez más cortos (hasta 40 segundos), y descarta las frases inventadas. El daño queda encerrado en el silencio donde empezó y lo demás se recupera.
 2. Whisper a veces junta en una sola frase de 25 segundos el final de una lectura y el comentario que sigue. Por eso las frases largas se parten en pedazos de 8 segundos como máximo, usando el tiempo de cada palabra.
 3. Un modelo de lenguaje recibe la transcripción en ventanas de 8 minutos y marca qué frases son **texto bíblico leído** (en cualquier versión) y cuáles son **oración**. No cuentan el anuncio («abramos en Romanos 11»), la paráfrasis ni el comentario.

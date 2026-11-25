@@ -153,6 +153,15 @@
       </label>
       <div class="resultado-prueba" id="prueba-openai"></div>
 
+      <h2>Qué API usar</h2>
+      <label class="interruptor chico"><input type="radio" name="api" value="" checked>
+        <span>Automático <small>(Groq transcribe; el texto lo analiza OpenAI si hay clave y, si no, Groq)</small></span></label>
+      <label class="interruptor chico"><input type="radio" name="api" value="openai">
+        <span>Solo OpenAI <small>(transcribe y analiza, aunque haya clave de Groq)</small></span></label>
+      <label class="interruptor chico"><input type="radio" name="api" value="groq">
+        <span>Solo Groq <small>(transcribe y analiza, aunque haya clave de OpenAI)</small></span></label>
+      <p class="nota" id="en-uso"></p>
+
       <h2>Modelo de lenguaje</h2>
       <label class="interruptor chico"><input type="radio" name="proveedor" value="groq" checked>
         <span>Automático <small>(OpenAI si hay clave; si no, openai/gpt-oss-120b en Groq)</small></span></label>
@@ -173,7 +182,7 @@
         <label class="campo"><span>Modelo</span>
           <input name="llm_modelo" list="modelos" placeholder="deepseek-chat" spellcheck="false"></label>
         <datalist id="modelos"></datalist>
-        <p class="nota">Se usa para marcar las lecturas y para analizar la estructura. Para la estructura conviene un modelo capaz, que lea el sermón completo de una vez.</p>
+        <p class="nota">Se usa para marcar las lecturas y para analizar la estructura. Para la estructura conviene un modelo capaz, que lea el sermón completo de una vez. Con «Solo OpenAI» o «Solo Groq» no se usa.</p>
       </div>
 
       <div class="error" id="error-ajustes" hidden></div>
