@@ -249,9 +249,9 @@ function miradaEn(a, b) {
   return n >= 20 ? 100 * c / n : null;
 }
 
-function juicio(si, textoSi, textoNo, detalle, momento) {
+function juicio(si, textoSi, textoNo, detalle, momento, extra = "") {
   return `<div class="juicio ${si ? "si" : "no"}"><span class="marca-juicio">${si ? "✓" : "✗"}</span>
-    <div><b>${si ? textoSi : textoNo}</b>${momento ? ` ${ir(momento)}` : ""}${detalle ? `<p>${esc(detalle)}</p>` : ""}</div></div>`;
+    <div><b>${si ? textoSi : textoNo}</b>${momento ? ` ${ir(momento)}` : ""}${detalle ? `<p>${esc(detalle)}</p>` : ""}${extra}</div></div>`;
 }
 
 function htmlSermon() {
@@ -272,6 +272,11 @@ function htmlSermon() {
       </div></li>`;
   }).join("");
 
+  // Dónde anunció o enumeró: cada señal con su minuto, y si es un punto del sermón o una lista dentro de uno.
+  const anuncios = (f.anuncios || []).map(a => `<li>${ir(a)}<span>${a.cita ? `«${esc(a.cita)}»` : ""}${
+    a.anuncia ? ` <span class="anuncia">→ ${esc(a.anuncia)}</span>` : ""}${
+    a.es_punto ? "" : ` <span class="chip aludido">lista dentro de un punto</span>`}</span></li>`).join("");
+
   const aspectos = [...new Set((eva.menciones || []).map(m => m.aspecto).filter(Boolean))];
   const secciones = [
     ["estructura", "Estructura", `
@@ -279,7 +284,8 @@ function htmlSermon() {
       ${E.pasaje_principal ? `<p class="pasaje-principal">${esc(E.pasaje_principal)}</p>` : ""}
       ${E.resumen ? `<p>${esc(E.resumen)}</p>` : ""}
       ${juicio(f.clara, "Estructura clara", "Estructura poco clara", f.explicacion)}
-      ${juicio(f.anuncia_puntos, "Anunció sus puntos", "No anunció sus puntos", f.como_los_anuncia)}
+      ${juicio(f.anuncia_puntos, "Anunció sus puntos", "No anunció sus puntos", f.como_los_anuncia, null,
+          anuncios ? `<ul class="senales">${anuncios}</ul>` : "")}
       ${!intro ? "" : juicio(intro.hay && intro.acorde, "La introducción va acorde con el argumento",
           intro.hay ? "La introducción no va acorde con el argumento" : "No tiene introducción",
           [intro.como_introduce, intro.explicacion].filter(Boolean).join(" "), intro.hay ? intro : null)}

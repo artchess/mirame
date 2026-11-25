@@ -159,6 +159,9 @@ body.ver-sermon .sermon { display: flex; flex-direction: column; }
 .juicio b { margin-right: 6px; }
 .juicio .ir { background: rgba(255, 255, 255, .7); }
 .juicio p { margin: 2px 0 0; color: var(--texto); font-size: 13.5px; }
+.senales { margin-top: 5px !important; color: var(--texto); font-size: 13.5px; }
+.senales li { display: flex; gap: 8px; align-items: baseline; padding: 2px 0; }
+.senales .anuncia { color: var(--suave); }
 
 .partes-sermon > li, .pasos > li, .pasajes > li, .climax { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 0 8px; padding: 8px 8px 8px 6px; border-radius: 10px; }
 .partes-sermon > li.actual { background: var(--fondo); box-shadow: inset 3px 0 0 var(--texto); }

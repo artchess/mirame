@@ -15,7 +15,11 @@ FRASES = [{"inicio": 10.0 * i, "fin": 10.0 * i + 9, "texto": f"frase {i}"} for i
 ESTRUCTURA = {
     "tema": "Dios sostiene su obra", "pasaje_principal": "Esdras 5:1-17", "resumen": "Un resumen.",
     "estructura": {"clara": True, "explicacion": "Sigue el texto.", "anuncia_puntos": "sí",
-                   "como_los_anuncia": "«lo primero que vemos»"},
+                   "como_los_anuncia": "«lo primero que vemos»",
+                   "anuncios": [{"desde": 36, "cita": "«tres razones»", "anuncia": "Escucha", "es_punto": False},
+                                {"desde": 10, "cita": "lo primero que vemos [10]", "anuncia": "Dios envía su palabra", "es_punto": True},
+                                {"desde": 999, "cita": "apunta a una frase que no existe", "es_punto": True},
+                                {"desde": 12}]},
     "introduccion": {"hay": True, "desde": 1, "como_introduce": "Abre con una pregunta.", "acorde": False,
                      "explicacion": "Habla de otra cosa."},
     "partes": [
@@ -73,12 +77,34 @@ def test_partes_ordenadas_con_su_tiempo_y_numeradas():
 def test_argumento_climax_evangelio_y_aplicaciones():
     e = normalizado()
     assert e["estructura"] == {"clara": True, "explicacion": "Sigue el texto.", "anuncia_puntos": True,
-                               "como_los_anuncia": "lo primero que vemos"}
+                               "como_los_anuncia": "lo primero que vemos", "anuncios": [
+        {"inicio": 100.0, "minuto": "1:40", "cita": "lo primero que vemos", "anuncia": "Dios envía su palabra", "es_punto": True},
+        {"inicio": 360.0, "minuto": "6:00", "cita": "tres razones", "anuncia": "Escucha", "es_punto": False}]}
     assert [(x["minuto"], x["paso"]) for x in e["argumento"]["desarrollo"]] == [("2:00", "Primero"), ("6:40", "Segundo")]
     assert e["climax"]["inicio"] == 520.0 and e["climax"]["fin"] == 549.0 and e["climax"]["cita"] == "Cristo venció"
     assert [(m["aspecto"], m["inicio"]) for m in e["evangelio"]["menciones"]] == [("muerte", 450.0), ("resurrección", 530.0)]
     assert e["evangelio"]["presente"] is True
     assert [a["aplicacion"] for a in e["aplicaciones"]] == ["Retoma la obra"]
+
+
+def test_enumerar_dentro_de_un_punto_no_es_anunciar_los_puntos():
+    """Las señales van con su minuto, y el veredicto sale de ellas: si lo único que enumeró es
+    una lista dentro de un punto, no anunció los puntos del sermón aunque el modelo diga que sí."""
+    e = normalizado()
+    t = estructura.texto(e)
+    assert "  - 1:40 · «lo primero que vemos» → Dios envía su palabra\n" in t
+    assert "  - 6:00 · «tres razones» → Escucha *(lista dentro de un punto)*" in t
+
+    solo_lista = {"estructura": {"anuncia_puntos": True, "como_los_anuncia": "Enumera tres tácticas.", "anuncios": [
+        {"desde": 40, "cita": "número dos, desanimar", "anuncia": "Desanimar", "es_punto": False}]}}
+    forma = estructura.normalizar(solo_lista, {}, [], FRASES)["estructura"]
+    assert forma["anuncia_puntos"] is False and [a["minuto"] for a in forma["anuncios"]] == ["6:40"]
+
+    sin_senales = estructura.normalizar({"estructura": {"anuncia_puntos": True}}, {}, [], FRASES)["estructura"]
+    assert sin_senales["anuncia_puntos"] is True and sin_senales["anuncios"] == []   # se respeta el veredicto del modelo
+
+    viejo = {**e, "estructura": {k: v for k, v in e["estructura"].items() if k != "anuncios"}}   # un estructura.json anterior
+    assert "- **¿Anunció sus puntos?** Sí. lo primero que vemos" in estructura.texto(viejo)
 
 
 def test_introduccion_y_si_va_acorde_con_el_argumento():

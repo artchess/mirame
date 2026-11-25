@@ -44,7 +44,7 @@ Este añadido nace de un grupo de predicación expositiva en la Iglesia Evangél
 
 ### Sobre el sermón (opcional, con IA)
 
-- **La estructura:** las partes del sermón, el minuto y las palabras de cada transición, si la estructura es clara y si el predicador anunció sus puntos.
+- **La estructura:** las partes del sermón, el minuto y las palabras de cada transición, si la estructura es clara y si el predicador anunció sus puntos, con el minuto de cada anuncio.
 - **La introducción:** si prepara el argumento principal o habla de otra cosa.
 - **El argumento y el clímax:** la tesis, los pasos con que se desarrolla y dónde está el clímax.
 - **El evangelio:** cómo se conectó el pasaje con el evangelio de Cristo y qué aspecto se mencionó (su vida, su muerte, su resurrección, su obra, su segunda venida, su reinado).
